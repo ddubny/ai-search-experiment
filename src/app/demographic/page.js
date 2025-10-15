@@ -165,8 +165,8 @@ export default function DemographicSurvey() {
                 <option>Some High School (Grades 9 through 11)</option>
                 <option>High School Diploma or Equivalent (Grade 12 or GED)</option>
                 <option>Some College or Technical School (College 1 year to 3 years)</option>
-                <option>Bachelor's Degree</option>
-                <option>Master's Degree</option>
+                <option>Bachelor&apos;s Degree</option>
+                <option>Master&apos;s Degree</option>
                 <option>Professional School (JD, MD, etc.) or Doctorate Degree (PhD, EdD)</option>
               </select>
             </div>
