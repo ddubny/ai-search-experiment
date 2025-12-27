@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ProgressBar from "../../components/ProgressBar";
-import { supabase } from "../../lib/supabaseClient"; // ✅ Supabase 연결
 
 export default function ConsentPage() {
   const router = useRouter();
@@ -25,81 +24,80 @@ export default function ConsentPage() {
 
   const canContinue = checked && name.trim() !== "" && date.trim() !== "";
 
-  // ✅ 동의 버튼 클릭 시 Supabase 저장 + 다음 단계 이동
+  // ✅ 동의 버튼 클릭 시 데이터베이스에 저장 + 다음 단계 이동
   const handleContinue = async () => {
-    if (!participantId) return;
+  if (!participantId) return;
 
-    try {
-      // Supabase에 consent 정보 저장
-      const { error } = await supabase.from("consent").insert([
-        {
-          participant_id: participantId,
-          consent: "yes",
-          name,
-          date,
-          created_at: new Date().toISOString(),
-        },
-      ]);
+  try {
+    const res = await fetch("/api/consent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        participant_id: participantId,
+        consent: "yes",
+        name,
+        date,
+      }),
+    });
 
-      if (error) {
-        console.error("Supabase insert error:", error);
-        alert("Error saving consent. Please try again.");
-        return;
-      }
+    const data = await res.json();
 
-      // LocalStorage에도 백업 저장
-      localStorage.setItem(
-        "irbConsent",
-        JSON.stringify({
-          participant_id: participantId,
-          consent: "yes",
-          name,
-          date,
-        })
-      );
-
-      // ✅ Task 페이지로 이동
-      router.push("/task");
-    } catch (err) {
-      console.error("Unexpected error:", err);
-      alert("Unexpected error occurred. Please refresh the page.");
+    if (!data.success) {
+      alert("Error saving consent. Please try again.");
+      return;
     }
-  };
 
-  // ✅ 거부 버튼 클릭 시 Supabase 저장 + thankyou 이동
-  const handleDecline = async () => {
-    if (!participantId) return;
+    localStorage.setItem(
+      "irbConsent",
+      JSON.stringify({
+        participant_id: participantId,
+        consent: "yes",
+        name,
+        date,
+      })
+    );
 
-    try {
-      const { error } = await supabase.from("consent").insert([
-        {
-          participant_id: participantId,
-          consent: "no",
-          name,
-          date,
-          created_at: new Date().toISOString(),
-        },
-      ]);
+    router.push("/task");
+  } catch (err) {
+    console.error("Consent error:", err);
+    alert("Unexpected error occurred.");
+  }
+};
 
-      if (error) {
-        console.error("Supabase insert error:", error);
-      }
 
-      localStorage.setItem(
-        "irbConsent",
-        JSON.stringify({
-          participant_id: participantId,
-          consent: "no",
-          name,
-          date,
-        })
-      );
 
-      router.push("/thankyou?status=declined");
-    } catch (err) {
-      console.error("Unexpected error:", err);
-    }
-  };
+  // ✅ 거부 버튼 클릭 시 데이터베이스 저장 + thankyou 이동
+const handleDecline = async () => {
+  if (!participantId) return;
+
+  try {
+    await fetch("/api/consent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        participant_id: participantId,
+        consent: "no",
+        name,
+        date,
+      }),
+    });
+
+    localStorage.setItem(
+      "irbConsent",
+      JSON.stringify({
+        participant_id: participantId,
+        consent: "no",
+        name,
+        date,
+      })
+    );
+
+    router.push("/thankyou?status=declined");
+  } catch (err) {
+    console.error("Consent decline error:", err);
+  }
+};
+
 
   if (!participantId)
     return (
