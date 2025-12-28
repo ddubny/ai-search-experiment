@@ -23,7 +23,7 @@ export default function ConsentPage() {
   }, []);
 
   const canContinue = checked && name.trim() !== "" && date.trim() !== "";
-  const consentKey = participant_id & "_" & DATETIME_FORMAT(created_at, 'YYYY-MM-DD_HH:mm:ss');
+  const consentKey = `${participantId}_${timestamp}`;
 
   // ✅ 동의 버튼 클릭 시 데이터베이스에 저장 + 다음 단계 이동
   const handleContinue = async () => {
