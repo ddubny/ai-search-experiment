@@ -8,7 +8,10 @@ export default function PreSurvey() {
   const router = useRouter();
 
   const [participantId, setParticipantId] = useState(null);
-  const [taskType, setTaskType] = useState(""); // GMO / Nanotechnology / Cultivated meat
+  const [taskType, setTaskType] = useState("");
+  const [searchCase, setSearchCase] = useState("");
+  const [searchTask, setSearchTask] = useState("");
+
   const [responses, setResponses] = useState({});
   const [loading, setLoading] = useState(false);
 
@@ -17,12 +20,6 @@ export default function PreSurvey() {
   -------------------------------- */
   const [panelOpen, setPanelOpen] = useState(true);
   const [showGuide, setShowGuide] = useState(true);
-  const [expandGuideTask, setExpandGuideTask] = useState(false);
-
-  /* -------------------------------
-     Assigned task text (UI only)
-  -------------------------------- */
-  const [assignedTasks, setAssignedTasks] = useState([]);
 
   /* -------------------------------
      Arrow calculation refs
@@ -32,40 +29,34 @@ export default function PreSurvey() {
   const [arrowPath, setArrowPath] = useState("");
 
   /* -------------------------------
-     Load participant + task type
+     Load participant + task (single source of truth)
   -------------------------------- */
   useEffect(() => {
     const id = localStorage.getItem("participant_id");
     if (!id) {
-      window.location.href = "/check";
+      router.push("/check");
       return;
     }
     setParticipantId(id);
 
-    // Task_type (must match Airtable single select exactly)
     const type = localStorage.getItem("task_type");
-    if (!type) {
-      alert("Task type not found. Please restart the study.");
-      window.location.href = "/check";
+    const scase = localStorage.getItem("search_case");
+    const stask = localStorage.getItem("search_task");
+
+    if (!type || !scase || !stask) {
+      console.error("Task assignment missing in localStorage", {
+        type,
+        scase,
+        stask,
+      });
+      router.push("/task");
       return;
     }
-    setTaskType(type);
 
-    // Assigned task text (for display only)
-    try {
-      const raw = localStorage.getItem("assigned_tasks");
-      const arr = raw ? JSON.parse(raw) : null;
-      if (Array.isArray(arr) && arr.length > 0) {
-        setAssignedTasks(arr);
-      } else {
-        const fallback = localStorage.getItem("scenario");
-        if (fallback) setAssignedTasks([fallback]);
-      }
-    } catch {
-      const fallback = localStorage.getItem("scenario");
-      if (fallback) setAssignedTasks([fallback]);
-    }
-  }, []);
+    setTaskType(type);
+    setSearchCase(scase);
+    setSearchTask(stask);
+  }, [router]);
 
   /* -------------------------------
      Question sets
@@ -111,8 +102,7 @@ export default function PreSurvey() {
   };
 
   /* -------------------------------
-     Submit → /api/pre-survey
-     (Airtable schema aligned)
+     Submit → /api/airtable/pre-survey
   -------------------------------- */
   const handleSubmit = async () => {
     if (loading) return;
@@ -139,7 +129,7 @@ export default function PreSurvey() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           participant_id: participantId,
-          Task_type: taskType, // MUST match Airtable single select
+          Task_type: taskType,
           familiarity_responses: familiarityResponses,
           self_efficacy_responses: selfEfficacyResponses,
         }),
@@ -169,12 +159,10 @@ export default function PreSurvey() {
     }
 
     const compute = () => {
-      const cardEl = guideCardRef.current;
-      const anchorEl = taskPanelAnchorRef.current;
-      if (!cardEl || !anchorEl) return;
+      if (!guideCardRef.current || !taskPanelAnchorRef.current) return;
 
-      const card = cardEl.getBoundingClientRect();
-      const anchor = anchorEl.getBoundingClientRect();
+      const card = guideCardRef.current.getBoundingClientRect();
+      const anchor = taskPanelAnchorRef.current.getBoundingClientRect();
 
       const startX = card.left;
       const startY = card.top + card.height * 0.55;
@@ -193,7 +181,7 @@ export default function PreSurvey() {
     compute();
     window.addEventListener("resize", compute);
     return () => window.removeEventListener("resize", compute);
-  }, [showGuide, panelOpen, expandGuideTask]);
+  }, [showGuide, panelOpen]);
 
   /* -------------------------------
      Render
@@ -225,13 +213,17 @@ export default function PreSurvey() {
               {panelOpen && (
                 <>
                   <h2 className="text-lg font-semibold mb-3">Your Search Task</h2>
-                  <div className="space-y-4">
-                    {assignedTasks.map((t, i) => (
-                      <div key={i} className="bg-white p-3 rounded border text-sm whitespace-pre-wrap">
-                        <strong>Task {i + 1}</strong>
-                        <div className="mt-1">{t}</div>
-                      </div>
-                    ))}
+
+                  <div className="bg-white p-4 rounded border text-sm space-y-3">
+                    <div>
+                      <strong>Search Case</strong>
+                      <p className="mt-1 whitespace-pre-wrap">{searchCase}</p>
+                    </div>
+
+                    <div>
+                      <strong>Search Task</strong>
+                      <p className="mt-1 whitespace-pre-wrap">{searchTask}</p>
+                    </div>
                   </div>
                 </>
               )}
@@ -342,9 +334,8 @@ export default function PreSurvey() {
           <div ref={guideCardRef} className="bg-white p-8 rounded-lg shadow-xl max-w-[720px]">
             <h2 className="text-2xl font-semibold mb-4">Before You Begin</h2>
             <p className="mb-6 text-gray-700">
-              On this task, you will see your assigned search task on the left.
-              You may expand or collapse it at any time. Please read it carefully
-              before answering the following questions.
+              On this page, you can review your assigned search task on the left.
+              Please read it carefully before answering the following questions.
             </p>
 
             <button

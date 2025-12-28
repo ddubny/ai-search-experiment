@@ -99,8 +99,7 @@ export default function TaskPage() {
     setAssignedScenario(randomScenario);
 
     // localStorage에 고정 저장 (핵심)
-    localStorage.setItem("assigned_task_type", randomScenario.condition);
-    localStorage.setItem("condition", randomScenario.condition);
+    localStorage.setItem("task_type", randomScenario.condition);
     localStorage.setItem("search_case", randomScenario.searchCase);
     localStorage.setItem("search_task", randomScenario.searchTask);
 
