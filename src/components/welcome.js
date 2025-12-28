@@ -1,10 +1,8 @@
-import { Button } from "./ui/button";
-import { ImageWithFallback } from "./figma/ImageWithFallback";
-
 export function WelcomePage({ onNext }) {
   return (
     <div className="h-screen bg-background flex items-center justify-center p-8">
       <div className="w-full h-full max-h-[900px] bg-card rounded-lg shadow-sm border border-border p-12 flex flex-col">
+        
         <div className="flex-1 flex flex-col justify-center space-y-6">
 
           {/* Header */}
@@ -19,11 +17,13 @@ export function WelcomePage({ onNext }) {
 
             {/* Left Column */}
             <div className="space-y-6">
+
+              {/* Study Overview */}
               <div className="space-y-2">
                 <h2 className="font-bold">📚 Study Overview</h2>
 
-                <div className="space-y-3">
-                  <p className="text-muted-foreground">
+                <div className="space-y-3 text-muted-foreground">
+                  <p>
                     This study explores how people discover interesting or
                     unexpected information while searching online. You will
                     use a search system to explore a topic and reflect on
@@ -31,7 +31,7 @@ export function WelcomePage({ onNext }) {
                     inform the design of future search tools.
                   </p>
 
-                  <div className="text-muted-foreground">
+                  <div>
                     <p className="mb-2">
                       The study consists of three short parts:
                     </p>
@@ -42,7 +42,7 @@ export function WelcomePage({ onNext }) {
                     </ol>
                   </div>
 
-                  <p className="text-muted-foreground">
+                  <p>
                     ⏱️ The entire study takes about <b>10–12 minutes</b> to complete.
                   </p>
                 </div>
@@ -63,11 +63,12 @@ export function WelcomePage({ onNext }) {
 
             {/* Right Column */}
             <div className="space-y-6">
+
               <div className="space-y-3">
                 <h2 className="font-bold">🖥️ Search Session Preview</h2>
 
                 <div className="border border-border rounded-lg overflow-hidden">
-                  <ImageWithFallback
+                  <img
                     src="https://images.unsplash.com/photo-1762330470070-249e7c23c8c0"
                     alt="Search interface example"
                     className="w-full h-[450px] object-cover"
@@ -86,10 +87,14 @@ export function WelcomePage({ onNext }) {
 
         {/* Footer */}
         <div className="pt-6 flex justify-end">
-          <Button onClick={onNext} size="lg" className="px-8">
+          <button
+            onClick={onNext}
+            className="px-8 py-3 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition"
+          >
             Next: Get Started →
-          </Button>
+          </button>
         </div>
+
       </div>
     </div>
   );
