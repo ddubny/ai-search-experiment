@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
-import Airtable from "airtable";
 
-const base = new Airtable({
-  apiKey: process.env.AIRTABLE_API_KEY,
-}).base(process.env.AIRTABLE_BASE_ID);
+export const runtime = "nodejs";
+
+const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
+const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
+const TABLE_NAME = "consent";
 
 export async function POST(req) {
   try {
-    const body = await req.json();
-    const { consent_key, participant_id, consent, name, date } = body;
+    const { consent_key, participant_id, consent, name, date } =
+      await req.json();
 
     if (!consent_key) {
       return NextResponse.json(
@@ -17,32 +18,47 @@ export async function POST(req) {
       );
     }
 
-    const table = base("consent");
+    const headers = {
+      Authorization: `Bearer ${AIRTABLE_API_KEY}`,
+      "Content-Type": "application/json",
+    };
 
-    // ✅ ① consent_key 기준 중복 검사
-    const existing = await table
-      .select({
-        filterByFormula: `{consent_key} = "${consent_key}"`,
-        maxRecords: 1,
-      })
-      .firstPage();
+    /* ① consent_key 중복 검사 */
+    const query = encodeURIComponent(`{consent_key}="${consent_key}"`);
+    const checkUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${TABLE_NAME}?filterByFormula=${query}&maxRecords=1`;
 
-    // ✅ ② 이미 있으면 새 row 생성하지 않음
-    if (existing.length > 0) {
+    const checkRes = await fetch(checkUrl, { headers });
+    const checkData = await checkRes.json();
+
+    if (checkData.records && checkData.records.length > 0) {
       return NextResponse.json({
         success: true,
         duplicate: true,
       });
     }
 
-    // ✅ ③ 없을 때만 create
-    await table.create({
-      consent_key,
-      participant_id,
-      consent,
-      name,
-      date,
-    });
+    /* ② 없을 때만 생성 */
+    const createRes = await fetch(
+      `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${TABLE_NAME}`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          fields: {
+            consent_key,
+            participant_id,
+            consent,
+            name,
+            date,
+          },
+        }),
+      }
+    );
+
+    if (!createRes.ok) {
+      const errText = await createRes.text();
+      throw new Error(errText);
+    }
 
     return NextResponse.json({ success: true });
 
