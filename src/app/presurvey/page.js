@@ -9,6 +9,7 @@ const GUIDE_SEEN_KEY = "presurvey_guide_seen";
 
 export default function PreSurvey() {
   const router = useRouter();
+  const [showWarningModal, setShowWarningModal] = useState(false);
   const [incompleteWarningCount, setIncompleteWarningCount] = useState(0);
 
   const [participantId, setParticipantId] = useState(null);
@@ -132,7 +133,7 @@ export default function PreSurvey() {
     const unanswered = allQuestions.filter((q) => responses[q] === undefined);
 
     if (unanswered.length > 0 && incompleteWarningCount < 2) {
-      alert("⚠️ Please answer all questions before continuing.🙏🏻");
+      setShowWarningModal(true);
       setIncompleteWarningCount((c) => c + 1);
       return;
     }
@@ -254,7 +255,7 @@ export default function PreSurvey() {
                           type="radio"
                           checked={responses[q] === i + 1}
                           onChange={() => handleChange(q, i + 1)}
-                          className="mb-1 accent-blue-600"
+                          className="mb-2 accent-blue-600 scale-125"
                         />
                         <span>{label}</span>
                       </label>
@@ -294,6 +295,27 @@ export default function PreSurvey() {
               className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold"
             >
               Got it
+            </button>
+          </div>
+        </div>
+      )}
+            {/* Incomplete warning modal */}
+      {showWarningModal && (
+        <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center">
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full text-center">
+            <h3 className="text-lg font-semibold mb-3">
+              ⚠️ Incomplete Responses
+            </h3>
+            <p className="text-gray-700 mb-6 leading-relaxed">
+              {incompleteWarningCount === 1
+                ? "Please answer all questions before continuing."
+                : "You may proceed, but unanswered questions will be recorded as missing."}
+            </p>
+            <button
+              onClick={() => setShowWarningModal(false)}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold"
+            >
+              OK
             </button>
           </div>
         </div>
