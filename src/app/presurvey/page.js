@@ -6,10 +6,10 @@ import ProgressBar from "../../components/ProgressBar";
 
 const STORAGE_KEY = "presurvey_responses";
 const GUIDE_SEEN_KEY = "presurvey_guide_seen";
-const [incompleteWarningCount, setIncompleteWarningCount] = useState(0);
 
 export default function PreSurvey() {
   const router = useRouter();
+  const [incompleteWarningCount, setIncompleteWarningCount] = useState(0);
 
   const [participantId, setParticipantId] = useState(null);
   const [taskType, setTaskType] = useState("");
