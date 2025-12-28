@@ -11,6 +11,29 @@ export default function TaskPage() {
   const [participantId, setParticipantId] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const highlightKeywords = (text, condition) => {
+    const keywordMap = {
+      Nanotechnology: ["nanotechnology", "nanoparticles"],
+      GMO: ["genetically modified organisms", "GMOs", "GMO"],
+      "Cultivated Meat": ["cultivated meat"],
+    };
+
+    const keywords = keywordMap[condition] || [];
+
+    let highlightedText = text;
+
+    keywords.forEach((keyword) => {
+      const regex = new RegExp(`(${keyword})`, "gi");
+      highlightedText = highlightedText.replace(
+        regex,
+        `<span class="bg-yellow-200 font-semibold px-1 rounded">$1</span>`
+      );
+    });
+
+    return highlightedText;
+  };
+
+
   // 1. participant_id 불러오기
   useEffect(() => {
     const id = localStorage.getItem("participant_id");
@@ -36,9 +59,9 @@ export default function TaskPage() {
       {
         condition: "GMO",
         searchCase:
-          "Your friend visited a grocery store. While your friend was standing in front of the cereal and snack section, your friend overheard some people talking about how some genetically modified foods may disrupt hormones or cause long-term health effects. You want to check what scientific evidence actually says.",
+          "Your friend visited a grocery store. While your friend was standing in front of the cereal and snack section, your friend overheard some people talking about how some genetically modified organisms (GMOs) food may disrupt hormones or cause long-term health effects. You want to check what scientific evidence actually says.",
         searchTask:
-          "Perform a search to explore evidence about genetically modified foods (GMOs).",
+          "Perform a search to explore evidence about GMO Foods.",
       },
       {
         condition: "Cultivated Meat",
@@ -103,22 +126,34 @@ export default function TaskPage() {
       {/* Main content */}
       <div className="flex flex-1 items-center justify-center px-6 py-12">
         <div className="max-w-2xl text-center">
-          <h1 className="text-3xl font-bold mb-8">Your Search Task</h1>
+          <h1 className="text-3xl font-bold mb-8">📋 Your Search Task</h1>
 
           {/* Search Case */}
           <div className="bg-gray-50 border border-gray-200 rounded-2xl shadow-sm p-8 mb-6 text-left">
             <h2 className="font-semibold mb-2">Search Case</h2>
-            <p className="text-gray-800 leading-relaxed">
-              {assignedScenario.searchCase}
-            </p>
+            <p
+              className="text-gray-800 leading-relaxed"
+              dangerouslySetInnerHTML={{
+                __html: highlightKeywords(
+                  assignedScenario.searchCase,
+                  assignedScenario.condition
+                ),
+              }}
+            />
           </div>
 
           {/* Search Task */}
           <div className="bg-gray-50 border border-gray-200 rounded-2xl shadow-sm p-8 mb-10 text-left">
             <h2 className="font-semibold mb-2">Search Task</h2>
-            <p className="text-gray-800 leading-relaxed">
-              {assignedScenario.searchTask}
-            </p>
+            <p
+              className="text-gray-800 leading-relaxed"
+              dangerouslySetInnerHTML={{
+                __html: highlightKeywords(
+                  assignedScenario.searchTask,
+                  assignedScenario.condition
+                ),
+              }}
+            />
           </div>
 
           <p className="text-gray-600 text-base mb-10">
