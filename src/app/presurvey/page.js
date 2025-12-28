@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import ProgressBar from "../../components/ProgressBar";
 
 const STORAGE_KEY = "presurvey_responses";
+const GUIDE_SEEN_KEY = "presurvey_guide_seen";
+const [incompleteWarningCount, setIncompleteWarningCount] = useState(0);
 
 export default function PreSurvey() {
   const router = useRouter();
@@ -62,6 +64,11 @@ export default function PreSurvey() {
       } catch {
         localStorage.removeItem(STORAGE_KEY);
       }
+    }
+
+    const guideSeen = localStorage.getItem(GUIDE_SEEN_KEY);
+    if (guideSeen === "true") {
+      setShowGuide(false);
     }
   }, [router]);
 
@@ -124,8 +131,9 @@ export default function PreSurvey() {
     const allQuestions = [...familiarityQuestions, ...selfEfficacyQuestions];
     const unanswered = allQuestions.filter((q) => responses[q] === undefined);
 
-    if (unanswered.length > 0) {
-      alert("Please answer all questions before continuing.");
+    if (unanswered.length > 0 && incompleteWarningCount < 2) {
+      alert("⚠️ Please answer all questions before continuing.🙏🏻");
+      setIncompleteWarningCount((c) => c + 1);
       return;
     }
 
@@ -207,9 +215,11 @@ export default function PreSurvey() {
             <h2 className="text-xl font-semibold mb-6">About the given search task</h2>
 
             <div className="space-y-8 mb-16">
-              {familiarityQuestions.map((q) => (
-                <div key={q} className="border-b pb-6 space-y-3">
-                  <p className="font-medium">{q}</p>
+              {familiarityQuestions.map((q, idx) => (
+                <div key={q} className="border-b pb-8 space-y-4">
+                  <p className="font-medium text-[18px]">
+                    {idx + 1}. {q}
+                  </p>
                   <div className="flex justify-between text-sm text-gray-600">
                     {familiarityLabels.map((label, i) => (
                       <label key={label} className="flex flex-col items-center w-[100px]">
@@ -217,7 +227,7 @@ export default function PreSurvey() {
                           type="radio"
                           checked={responses[q] === i + 1}
                           onChange={() => handleChange(q, i + 1)}
-                          className="mb-1 accent-blue-600"
+                          className="mb-2 accent-blue-600 scale-125"
                         />
                         <span>{label}</span>
                       </label>
@@ -232,9 +242,11 @@ export default function PreSurvey() {
             </h2>
 
             <div className="space-y-8">
-              {selfEfficacyQuestions.map((q) => (
-                <div key={q} className="border-b pb-6 space-y-3">
-                  <p className="font-medium">{q}</p>
+              {selfEfficacyQuestions.map((q, idx) => (
+                <div key={q} className="border-b pb-8 space-y-4">
+                  <p className="font-medium text-[18px]">
+                    {idx + 1}. {q}
+                  </p>
                   <div className="flex justify-between text-sm text-gray-600">
                     {selfEfficacyLabels.map((label, i) => (
                       <label key={label} className="flex flex-col items-center w-[110px]">
@@ -275,7 +287,10 @@ export default function PreSurvey() {
               Your responses will be saved automatically.
             </p>
             <button
-              onClick={() => setShowGuide(false)}
+              onClick={() => {
+                localStorage.setItem(GUIDE_SEEN_KEY, "true");
+                setShowGuide(false);
+              }}
               className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold"
             >
               Got it
