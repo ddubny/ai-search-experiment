@@ -1,32 +1,52 @@
 import { NextResponse } from "next/server";
-import { createParticipantRecord } from "@/lib/airtable";
 
 export async function POST(req) {
   try {
     const body = await req.json();
 
-    const { participant_id, condition, response_json } = body;
+    const { participant_id, consent, name, date } = body;
 
-    // ✅ 필수값 검증
     if (!participant_id) {
       throw new Error("participant_id is required");
     }
-    if (!condition) {
-      throw new Error("condition is required");
+    if (!consent) {
+      throw new Error("consent is required");
     }
-    if (!response_json) {
-      throw new Error("response_json is required");
+    if (!date) {
+      throw new Error("date is required");
     }
 
-    const result = await createParticipantRecord({
+    const fields = {
       participant_id,
-      condition,
-      response_json,
-    });
+      consent, // "yes" | "no" → Airtable Single select
+      name: name || "",
+      date,    // YYYY-MM-DD (page.js에서 온 값 그대로)
+    };
 
-    return NextResponse.json({ success: true, result });
+    const res = await fetch(
+      `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/consent`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.AIRTABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          records: [{ fields }],
+        }),
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      console.error("Airtable consent error:", data);
+      throw new Error("Failed to save consent");
+    }
+
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Airtable API error:", error);
+    console.error("Consent API error:", error);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }
