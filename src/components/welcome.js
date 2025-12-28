@@ -7,7 +7,7 @@ export function WelcomePage({ onNext }) {
 
           {/* Header */}
           <div className="text-center space-y-3">
-            <h1 className="text-[64px] font-[Castoro] font-bold">
+            <h1 className="text-[64px] font-bold">
               👋 Welcome to our Study!
             </h1>
           </div>
@@ -20,7 +20,7 @@ export function WelcomePage({ onNext }) {
 
               {/* Study Overview */}
               <div className="space-y-2">
-                <h2 className="font-bold">📚 Study Overview</h2>
+                <h2 className="font-bold">📍 Study Overview</h2>
 
                 <div className="space-y-3 text-muted-foreground">
                   <p>
@@ -51,11 +51,11 @@ export function WelcomePage({ onNext }) {
               {/* Important Notes */}
               <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
                 <h3 className="text-secondary-foreground font-bold">
-                  💡 Important Notes from Researchers
+                  📢 Important Notes from Researchers
                 </h3>
                 <ul className="space-y-1 text-secondary-foreground list-disc list-inside">
-                  <li>🌱 We are interested in how you naturally explore information.</li>
-                  <li>🔍 Feel free to explore in any direction that interests you.</li>
+                  <li>😊 This is not a test of your knowledge or skills</li>
+                  <li>⚠️ There are no right or wrong answers</li>
                   <li>🔒 All data is anonymized.</li>
                 </ul>
               </div>
@@ -77,7 +77,7 @@ export function WelcomePage({ onNext }) {
 
                 <ul className="space-y-1 text-muted-foreground list-disc list-inside">
                   <li>⏰ You will perform a 4-minute search</li>
-                  <li>📌 Use the scrapbook feature to save interesting findings</li>
+                  <li>📌 You can use the scrapbook feature to save interesting findings</li>
                 </ul>
               </div>
             </div>
