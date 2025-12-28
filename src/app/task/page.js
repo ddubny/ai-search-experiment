@@ -11,7 +11,7 @@ export default function TaskPage() {
   const [loading, setLoading] = useState(true);
 
   /* =========================
-     Keyword Highlight Helper
+     Highlight helper
      (Search Task ONLY)
      ========================= */
   const highlightKeywords = (text, condition) => {
@@ -48,59 +48,7 @@ export default function TaskPage() {
   }, []);
 
   /* =========================
-     Airtable helpers
-     ========================= */
-  const getConsentRecordId = async (participantId) => {
-    const url = `https://api.airtable.com/v0/${process.env.NEXT_PUBLIC_AIRTABLE_BASE_ID}/consent?filterByFormula=${encodeURIComponent(
-      `{participant_id}='${participantId}'`
-    )}`;
-
-    console.log("Airtable lookup URL:", url);
-
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${process.env.AIRTABLE_API_KEY}`,
-      },
-    });
-
-    const data = await response.json();
-    console.log("Airtable lookup result:", data);
-
-    if (!data.records || data.records.length === 0) {
-      return null;
-    }
-
-    return data.records[0].id;
-  };
-
-  const updateTaskType = async (recordId, taskType) => {
-    const response = await fetch(
-      `https://api.airtable.com/v0/${process.env.NEXT_PUBLIC_AIRTABLE_BASE_ID}/consent/${recordId}`,
-      {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${process.env.AIRTABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fields: {
-            task_type: taskType,
-            task_assigned_at: new Date().toISOString(),
-          },
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Airtable update failed:", errorText);
-    } else {
-      console.log("Airtable task_type updated:", taskType);
-    }
-  };
-
-  /* =========================
-     2. Assign scenario + update consent
+     2. Assign scenario (ONCE)
      ========================= */
   useEffect(() => {
     if (!participantId) return;
@@ -129,38 +77,34 @@ export default function TaskPage() {
       },
     ];
 
+    /* ===== 이미 할당된 경우 (새로고침 방지) ===== */
+    const savedCondition = localStorage.getItem("assigned_task_type");
+
+    if (savedCondition) {
+      const existingScenario = scenarios.find(
+        (s) => s.condition === savedCondition
+      );
+
+      if (existingScenario) {
+        setAssignedScenario(existingScenario);
+        setLoading(false);
+        return;
+      }
+    }
+
+    /* ===== 최초 방문: 랜덤 할당 ===== */
     const randomScenario =
       scenarios[Math.floor(Math.random() * scenarios.length)];
 
     setAssignedScenario(randomScenario);
 
-    // localStorage (UI & 다음 페이지 전달용)
+    // localStorage에 고정 저장 (핵심)
+    localStorage.setItem("assigned_task_type", randomScenario.condition);
     localStorage.setItem("condition", randomScenario.condition);
     localStorage.setItem("search_case", randomScenario.searchCase);
     localStorage.setItem("search_task", randomScenario.searchTask);
 
-    const saveTaskToConsent = async () => {
-      try {
-        const recordId = await getConsentRecordId(participantId);
-
-        if (!recordId) {
-          console.error(
-            "❌ Consent record not found for participant:",
-            participantId
-          );
-          setLoading(false);
-          return;
-        }
-
-        await updateTaskType(recordId, randomScenario.condition);
-      } catch (err) {
-        console.error("❌ Failed to update consent record:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    saveTaskToConsent();
+    setLoading(false);
   }, [participantId]);
 
   const handleContinue = () => {
