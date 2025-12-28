@@ -12,6 +12,7 @@ export default function TaskPage() {
 
   /* =========================
      Keyword Highlight Helper
+     (Search Task ONLY)
      ========================= */
   const highlightKeywords = (text, condition) => {
     const keywordMap = {
@@ -50,23 +51,30 @@ export default function TaskPage() {
      Airtable helpers
      ========================= */
   const getConsentRecordId = async (participantId) => {
-    const response = await fetch(
-      `https://api.airtable.com/v0/${process.env.NEXT_PUBLIC_AIRTABLE_BASE_ID}/consent?filterByFormula=${encodeURIComponent(
-        `{participant_id}='${participantId}'`
-      )}`,
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.AIRTABLE_API_KEY}`,
-        },
-      }
-    );
+    const url = `https://api.airtable.com/v0/${process.env.NEXT_PUBLIC_AIRTABLE_BASE_ID}/consent?filterByFormula=${encodeURIComponent(
+      `{participant_id}='${participantId}'`
+    )}`;
+
+    console.log("Airtable lookup URL:", url);
+
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${process.env.AIRTABLE_API_KEY}`,
+      },
+    });
 
     const data = await response.json();
-    return data.records?.[0]?.id || null;
+    console.log("Airtable lookup result:", data);
+
+    if (!data.records || data.records.length === 0) {
+      return null;
+    }
+
+    return data.records[0].id;
   };
 
   const updateTaskType = async (recordId, taskType) => {
-    await fetch(
+    const response = await fetch(
       `https://api.airtable.com/v0/${process.env.NEXT_PUBLIC_AIRTABLE_BASE_ID}/consent/${recordId}`,
       {
         method: "PATCH",
@@ -82,6 +90,13 @@ export default function TaskPage() {
         }),
       }
     );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Airtable update failed:", errorText);
+    } else {
+      console.log("Airtable task_type updated:", taskType);
+    }
   };
 
   /* =========================
@@ -130,7 +145,7 @@ export default function TaskPage() {
 
         if (!recordId) {
           console.error(
-            "Consent record not found for participant:",
+            "❌ Consent record not found for participant:",
             participantId
           );
           setLoading(false);
@@ -139,7 +154,7 @@ export default function TaskPage() {
 
         await updateTaskType(recordId, randomScenario.condition);
       } catch (err) {
-        console.error("Failed to update task_type:", err);
+        console.error("❌ Failed to update consent record:", err);
       } finally {
         setLoading(false);
       }
@@ -173,25 +188,21 @@ export default function TaskPage() {
           <h1 className="text-3xl font-bold mb-8">📋 Your Search Task</h1>
 
           <p className="text-gray-600 text-base mb-10">
-            Please read the task carefully. You will next complete a short
-            pre-task survey, followed by the main search task.
+            Please read the task carefully.
+            <br />
+            You will next complete a short pre-task survey, followed by the main
+            search task.
           </p>
 
-          {/* Search Case */}
+          {/* Search Case (NO highlight) */}
           <div className="bg-gray-50 border border-gray-200 rounded-2xl shadow-sm p-8 mb-6 text-left">
             <h2 className="font-semibold mb-2">Search Case</h2>
-            <p
-              className="text-gray-800 leading-relaxed"
-              dangerouslySetInnerHTML={{
-                __html: highlightKeywords(
-                  assignedScenario.searchCase,
-                  assignedScenario.condition
-                ),
-              }}
-            />
+            <p className="text-gray-800 leading-relaxed">
+              {assignedScenario.searchCase}
+            </p>
           </div>
 
-          {/* Search Task */}
+          {/* Search Task (WITH highlight) */}
           <div className="bg-gray-50 border border-gray-200 rounded-2xl shadow-sm p-8 mb-10 text-left">
             <h2 className="font-semibold mb-2">Search Task</h2>
             <p
