@@ -134,8 +134,10 @@ export default function TaskPage() {
           <p className="text-gray-600 text-base mb-10">
             Please read the task carefully.
             <br />
-            You will next complete a short pre-task survey, followed by the main
+            You will next respond to a pre-task survey, followed by the main
             search task.
+            <br />
+            You will be able to review your search task at any time during the session.
           </p>
 
           {/* Search Case (NO highlight) */}
