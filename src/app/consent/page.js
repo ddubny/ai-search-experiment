@@ -32,7 +32,7 @@ export default function ConsentPage() {
   setIsSubmitting(true); // 🔒 즉시 잠금
 
   try {
-    const res = await fetch("/api/consent", {
+    const res = await fetch("/api/airtable/consent", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -63,7 +63,7 @@ const handleDecline = async () => {
   if (!participantId) return;
 
   try {
-    await fetch("/api/consent", {
+    await fetch("/api/airtable/consent", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
