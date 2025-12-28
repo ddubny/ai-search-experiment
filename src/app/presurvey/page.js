@@ -14,10 +14,8 @@ export default function PreSurvey() {
 
   const [showTask, setShowTask] = useState(true);
   const [showGuide, setShowGuide] = useState(true);
+  const [showPopupTask, setShowPopupTask] = useState(true);
 
-  /* -------------------------------
-     Load participant & scenario
-  -------------------------------- */
   useEffect(() => {
     const id = localStorage.getItem("participant_id");
     if (!id) {
@@ -27,14 +25,9 @@ export default function PreSurvey() {
     setParticipantId(id);
 
     const storedScenario = localStorage.getItem("scenario");
-    if (storedScenario) {
-      setScenario(storedScenario);
-    }
+    if (storedScenario) setScenario(storedScenario);
   }, []);
 
-  /* -------------------------------
-     Question sets
-  -------------------------------- */
   const familiarityQuestions = [
     "How familiar are you with the topic?",
     "How would you rate your understanding of the basic concepts of the topic?",
@@ -55,54 +48,21 @@ export default function PreSurvey() {
     "When confronted with difficult tasks, I am unsure whether I can find insightful information.",
   ];
 
-  const familiarityLabels = [
-    "Not at all",
-    "Slightly",
-    "Moderately",
-    "Very",
-    "Extremely",
-  ];
+  const handleChange = (q, v) =>
+    setResponses((p) => ({ ...p, [q]: v }));
 
-  const selfEfficacyLabels = [
-    "Strongly Disagree",
-    "Disagree",
-    "Slightly Disagree",
-    "Slightly Agree",
-    "Agree",
-    "Strongly Agree",
-  ];
-
-  const handleChange = (question, value) => {
-    setResponses((prev) => ({ ...prev, [question]: value }));
-  };
-
-  /* -------------------------------
-     Submit → Airtable (pre_survey)
-  -------------------------------- */
   const handleSubmit = async () => {
-    const allQuestions = [
-      ...familiarityQuestions,
-      ...selfEfficacyQuestions,
-    ];
-
-    const unanswered = allQuestions.filter(
-      (q) => responses[q] === undefined
-    );
-    if (unanswered.length > 0) {
-      alert("Please answer all questions before continuing.");
+    const all = [...familiarityQuestions, ...selfEfficacyQuestions];
+    if (all.some((q) => responses[q] === undefined)) {
+      alert("Please answer all questions.");
       return;
     }
 
-    // 🔹 responses 분리
-    const familiarityResponses = {};
-    familiarityQuestions.forEach((q) => {
-      familiarityResponses[q] = responses[q];
-    });
+    const familiarity = {};
+    familiarityQuestions.forEach((q) => (familiarity[q] = responses[q]));
 
-    const selfEfficacyResponses = {};
-    selfEfficacyQuestions.forEach((q) => {
-      selfEfficacyResponses[q] = responses[q];
-    });
+    const selfEff = {};
+    selfEfficacyQuestions.forEach((q) => (selfEff[q] = responses[q]));
 
     try {
       setLoading(true);
@@ -111,147 +71,83 @@ export default function PreSurvey() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          table: "pre_survey",               // ✅ 테이블 분리
-          participant_id: participantId,
-          scenario,
-          familiarity_responses: JSON.stringify(familiarityResponses),
-          self_efficacy_responses: JSON.stringify(selfEfficacyResponses),
-          created_at: new Date().toISOString(),
+          table: "pre_survey",
+          fields: {
+            participant_id: participantId,
+            scenario,
+            familiarity_responses: JSON.stringify(familiarity),
+            self_efficacy_responses: JSON.stringify(selfEff),
+            created_at: new Date().toISOString(),
+          },
         }),
       });
 
-      if (!res.ok) {
-        throw new Error("Failed to save pre-survey data");
-      }
+      if (!res.ok) throw new Error("Save failed");
 
       router.push("/experiment");
-    } catch (err) {
-      console.error("PreSurvey save error:", err);
-      alert("Error saving responses. Please try again.");
+    } catch (e) {
+      console.error(e);
+      alert("Error saving responses.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Progress bar */}
-      <div className="bg-gray-50 border-b border-gray-200 sticky top-0 z-40">
+    <div className="min-h-screen bg-gray-50 relative">
+      {/* Progress */}
+      <div className="sticky top-0 z-40 bg-gray-50 border-b">
         <div className="max-w-[1100px] mx-auto px-6 py-4">
           <ProgressBar progress={50} />
         </div>
       </div>
 
       <div className="flex">
-        {/* Left: Search Task */}
-        <div className="w-[20%] bg-gray-50 border-r border-gray-200 p-6">
+        {/* Search Task Panel */}
+        <div className="w-[22%] bg-gray-50 border-r p-6">
           <button
             onClick={() => setShowTask(!showTask)}
-            className="flex items-center justify-between w-full"
+            className="flex justify-between w-full font-semibold"
           >
-            <h2 className="text-lg font-semibold text-gray-700">
-              Your Search Task
-            </h2>
-            <span className="text-gray-500">
-              {showTask ? "▾" : "▸"}
-            </span>
+            Your Search Task <span>{showTask ? "▾" : "▸"}</span>
           </button>
-
           {showTask && (
-            <p className="mt-4 text-gray-800 leading-relaxed whitespace-pre-wrap">
+            <pre className="mt-4 whitespace-pre-wrap text-sm">
               {scenario}
-            </p>
+            </pre>
           )}
         </div>
 
-        {/* Right: Survey */}
-        <div className="flex-1 bg-white flex justify-center overflow-y-auto">
-          <div className="w-full max-w-[1000px] px-8 py-12">
-            <h1 className="text-3xl font-semibold mb-10 text-center">
-              Pre-Survey
-            </h1>
-
-            {/* Familiarity */}
-            <h2 className="text-xl font-semibold mb-4">
-              About the given search task
-            </h2>
-
-            <div className="flex justify-end mb-4">
-              <div className="flex justify-between gap-6 text-sm text-gray-600 font-medium w-[600px]">
-                {familiarityLabels.map((l, i) => (
-                  <span key={i} className="text-center w-[100px]">
-                    {l}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-8 mb-14">
-              {familiarityQuestions.map((q, i) => (
+        {/* Survey */}
+        <div className="flex-1 flex justify-center bg-white">
+          <div className="max-w-[1100px] w-full px-10 py-12">
+            {/* questions */}
+            {[...familiarityQuestions, ...selfEfficacyQuestions].map(
+              (q, i) => (
                 <div
                   key={i}
-                  className="grid grid-cols-[1fr_auto] gap-8 items-center border-b pb-4"
+                  className="grid grid-cols-[1.3fr_auto] gap-8 border-b py-4"
                 >
-                  <p className="text-gray-800">{q}</p>
-                  <div className="flex justify-between gap-6 bg-gray-50 rounded-lg px-6 py-3 w-[600px]">
-                    {[1, 2, 3, 4, 5].map((val) => (
+                  <p>{q}</p>
+                  <div className="flex gap-4">
+                    {[1, 2, 3, 4, 5, 6].map((v) => (
                       <input
-                        key={val}
+                        key={v}
                         type="radio"
                         name={q}
-                        checked={responses[q] === val}
-                        onChange={() => handleChange(q, val)}
-                        className="w-5 h-5 accent-blue-600"
+                        onChange={() => handleChange(q, v)}
                       />
                     ))}
                   </div>
                 </div>
-              ))}
-            </div>
+              )
+            )}
 
-            {/* Self-efficacy */}
-            <h2 className="text-xl font-semibold mb-4">
-              Pre-Search Self-Efficacy (Heppner & Petersen, 1982)
-            </h2>
-
-            <div className="flex justify-end mb-4">
-              <div className="flex justify-between gap-6 text-sm text-gray-600 font-medium w-[720px]">
-                {selfEfficacyLabels.map((l, i) => (
-                  <span key={i} className="text-center w-[100px]">
-                    {l}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-8">
-              {selfEfficacyQuestions.map((q, i) => (
-                <div
-                  key={i}
-                  className="grid grid-cols-[1fr_auto] gap-8 items-center border-b pb-4"
-                >
-                  <p className="text-gray-800">{q}</p>
-                  <div className="flex justify-between gap-6 bg-gray-50 rounded-lg px-6 py-3 w-[720px]">
-                    {[1, 2, 3, 4, 5, 6].map((val) => (
-                      <input
-                        key={val}
-                        type="radio"
-                        name={q}
-                        checked={responses[q] === val}
-                        onChange={() => handleChange(q, val)}
-                        className="w-5 h-5 accent-blue-600"
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-14 text-center">
+            <div className="text-center mt-12">
               <button
                 onClick={handleSubmit}
                 disabled={loading}
-                className="px-10 py-4 bg-blue-600 text-white font-semibold rounded-lg text-lg hover:bg-blue-700 disabled:opacity-50"
+                className="px-8 py-3 bg-blue-600 text-white rounded-lg"
               >
                 {loading ? "Submitting..." : "Next"}
               </button>
@@ -260,31 +156,47 @@ export default function PreSurvey() {
         </div>
       </div>
 
-      {/* Guide overlay */}
+      {/* Popup */}
       {showGuide && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-xl max-w-[600px] p-8 relative">
-            <h2 className="text-2xl font-semibold mb-4">
-              Before You Begin
-            </h2>
-            <p className="text-gray-700 leading-relaxed mb-6">
-              On the left, you will see your assigned search task. You may
-              expand or collapse it at any time. Please read the task carefully
-              before answering the following questions.
-            </p>
-            <div className="text-right">
+        <>
+          {/* SVG curved arrow */}
+          <svg className="fixed inset-0 pointer-events-none z-50">
+            <path
+              d="M 600 200 C 300 200, 200 350, 120 420"
+              stroke="white"
+              strokeWidth="6"
+              strokeDasharray="10 8"
+              fill="none"
+            />
+          </svg>
+
+          {/* Popup */}
+          <div className="fixed top-24 right-24 z-50 bg-white shadow-xl rounded-lg w-[420px]">
+            <button
+              onClick={() => setShowPopupTask(!showPopupTask)}
+              className="w-full text-left px-4 py-2 font-semibold border-b"
+            >
+              Search Task {showPopupTask ? "▾" : "▸"}
+            </button>
+
+            {showPopupTask && (
+              <div className="p-4 max-h-[300px] overflow-y-auto text-sm">
+                <pre className="whitespace-pre-wrap">
+                  {scenario}
+                </pre>
+              </div>
+            )}
+
+            <div className="p-4 text-right">
               <button
                 onClick={() => setShowGuide(false)}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold"
+                className="px-4 py-2 bg-blue-600 text-white rounded"
               >
                 Got it
               </button>
             </div>
-            <div className="absolute -left-6 top-24 text-4xl text-blue-600">
-              ←
-            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
