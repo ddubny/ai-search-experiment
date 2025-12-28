@@ -10,6 +10,7 @@ export default function ConsentPage() {
   const [name, setName] = useState("");
   const [date, setDate] = useState("");
   const [participantId, setParticipantId] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ✅ check 페이지에서 생성된 UUID 불러오기
   useEffect(() => {
@@ -25,8 +26,10 @@ export default function ConsentPage() {
   const canContinue = checked && name.trim() !== "" && date.trim() !== "";
 
   // ✅ 동의 버튼 클릭 시 데이터베이스에 저장 + 다음 단계 이동
-  const handleContinue = async () => {
-  if (!participantId) return;
+ const handleContinue = async () => {
+  if (!participantId || isSubmitting) return;
+
+  setIsSubmitting(true); // 🔒 즉시 잠금
 
   try {
     const res = await fetch("/api/consent", {
@@ -43,27 +46,16 @@ export default function ConsentPage() {
     const data = await res.json();
 
     if (!data.success) {
-      alert("Error saving consent. Please try again.");
-      return;
+      throw new Error("Save failed");
     }
-
-    localStorage.setItem(
-      "irbConsent",
-      JSON.stringify({
-        participant_id: participantId,
-        consent: "yes",
-        name,
-        date,
-      })
-    );
 
     router.push("/task");
   } catch (err) {
-    console.error("Consent error:", err);
-    alert("Unexpected error occurred.");
+    console.error("Consent save error:", err);
+    alert("Error saving consent. Please try again.");
+    setIsSubmitting(false); // ❌ 실패 시만 다시 활성화
   }
 };
-
 
 
   // ✅ 거부 버튼 클릭 시 데이터베이스 저장 + thankyou 이동
@@ -253,14 +245,14 @@ const handleDecline = async () => {
           <button
             type="button"
             onClick={handleContinue}
-            disabled={!canContinue}
+            disabled={!canContinue || isSubmitting}
             className={`inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-white ${
-              canContinue
+              canContinue && !isSubmitting
                 ? "bg-gray-900 hover:bg-black"
                 : "bg-gray-400 cursor-not-allowed"
             }`}
           >
-            Continue
+            {isSubmitting ? "Saving consent…" : "Continue"}
           </button>
         </div>
 
