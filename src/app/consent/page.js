@@ -23,7 +23,6 @@ export default function ConsentPage() {
   }, []);
 
   const canContinue = checked && name.trim() !== "" && date.trim() !== "";
-  const consentKey = `${participantId}_${timestamp}`;
 
   // ✅ 동의 버튼 클릭 시 데이터베이스에 저장 + 다음 단계 이동
   const handleContinue = async () => {
@@ -34,7 +33,6 @@ export default function ConsentPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        consent_key: consentKey,
         participant_id: participantId,
         consent: "yes",
         name,
@@ -77,7 +75,6 @@ const handleDecline = async () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        consent_key: consentKey,
         participant_id: participantId,
         consent: "no",
         name,
