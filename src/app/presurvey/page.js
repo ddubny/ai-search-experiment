@@ -7,28 +7,32 @@ import ProgressBar from "../../components/ProgressBar";
 export default function PreSurvey() {
   const router = useRouter();
 
-  const [scenario, setScenario] = useState("");
   const [participantId, setParticipantId] = useState(null);
+  const [taskType, setTaskType] = useState(""); // GMO / Nanotechnology / Cultivated meat
   const [responses, setResponses] = useState({});
   const [loading, setLoading] = useState(false);
 
-  // Left “wing panel”
+  /* -------------------------------
+     UI state (wing panel + guide)
+  -------------------------------- */
   const [panelOpen, setPanelOpen] = useState(true);
-
-  // Guide modal + its task “wing”
   const [showGuide, setShowGuide] = useState(true);
   const [expandGuideTask, setExpandGuideTask] = useState(false);
 
-  // Assigned tasks (show all previously assigned)
+  /* -------------------------------
+     Assigned task text (UI only)
+  -------------------------------- */
   const [assignedTasks, setAssignedTasks] = useState([]);
 
-  // Arrow (auto-calculated)
-  const taskPanelAnchorRef = useRef(null); // point near the “Your Search Task” title
-  const guideCardRef = useRef(null); // modal card
+  /* -------------------------------
+     Arrow calculation refs
+  -------------------------------- */
+  const taskPanelAnchorRef = useRef(null);
+  const guideCardRef = useRef(null);
   const [arrowPath, setArrowPath] = useState("");
 
   /* -------------------------------
-     Load participant & scenario/tasks
+     Load participant + task type
   -------------------------------- */
   useEffect(() => {
     const id = localStorage.getItem("participant_id");
@@ -38,24 +42,28 @@ export default function PreSurvey() {
     }
     setParticipantId(id);
 
-    const storedScenario = localStorage.getItem("scenario") || "";
-    setScenario(storedScenario);
+    // Task_type (must match Airtable single select exactly)
+    const type = localStorage.getItem("task_type");
+    if (!type) {
+      alert("Task type not found. Please restart the study.");
+      window.location.href = "/check";
+      return;
+    }
+    setTaskType(type);
 
-    // Try to load all previously assigned tasks
-    // Recommended storage key: assigned_tasks (JSON array of strings)
-    // Fallback: use scenario if no array exists.
+    // Assigned task text (for display only)
     try {
       const raw = localStorage.getItem("assigned_tasks");
       const arr = raw ? JSON.parse(raw) : null;
       if (Array.isArray(arr) && arr.length > 0) {
-        setAssignedTasks(arr.filter((x) => typeof x === "string" && x.trim().length > 0));
-      } else if (storedScenario?.trim()) {
-        setAssignedTasks([storedScenario]);
+        setAssignedTasks(arr);
       } else {
-        setAssignedTasks([]);
+        const fallback = localStorage.getItem("scenario");
+        if (fallback) setAssignedTasks([fallback]);
       }
     } catch {
-      if (storedScenario?.trim()) setAssignedTasks([storedScenario]);
+      const fallback = localStorage.getItem("scenario");
+      if (fallback) setAssignedTasks([fallback]);
     }
   }, []);
 
@@ -88,21 +96,26 @@ export default function PreSurvey() {
     []
   );
 
-  const familiarityLabels = useMemo(() => ["Not at all", "Slightly", "Moderately", "Very", "Extremely"], []);
-  const selfEfficacyLabels = useMemo(
-    () => ["Strongly Disagree", "Disagree", "Slightly Disagree", "Slightly Agree", "Agree", "Strongly Agree"],
-    []
-  );
+  const familiarityLabels = ["Not at all", "Slightly", "Moderately", "Very", "Extremely"];
+  const selfEfficacyLabels = [
+    "Strongly Disagree",
+    "Disagree",
+    "Slightly Disagree",
+    "Slightly Agree",
+    "Agree",
+    "Strongly Agree",
+  ];
 
   const handleChange = (question, value) => {
     setResponses((prev) => ({ ...prev, [question]: value }));
   };
 
   /* -------------------------------
-     Submit → Airtable (pre_survey)
+     Submit → /api/pre-survey
+     (Airtable schema aligned)
   -------------------------------- */
   const handleSubmit = async () => {
-    if (loading) return; // prevent double submit
+    if (loading) return;
 
     const allQuestions = [...familiarityQuestions, ...selfEfficacyQuestions];
     const unanswered = allQuestions.filter((q) => responses[q] === undefined);
@@ -121,43 +134,33 @@ export default function PreSurvey() {
     try {
       setLoading(true);
 
-      const payload = {
-        table: "pre_survey",
-        participant_id: participantId,
-        scenario,
-        familiarity_responses: familiarityResponses,
-        self_efficacy_responses: selfEfficacyResponses,
-        created_at: new Date().toISOString(),
-      };
-
-      const res = await fetch("/api/airtable", {
+      const res = await fetch("/api/pre-survey", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          participant_id: participantId,
+          Task_type: taskType, // MUST match Airtable single select
+          familiarity_responses: familiarityResponses,
+          self_efficacy_responses: selfEfficacyResponses,
+        }),
       });
 
       if (!res.ok) {
-        // Try to surface server response for debugging
-        let detail = "";
-        try {
-          detail = await res.text();
-        } catch {}
-        console.error("PreSurvey save failed:", res.status, detail);
-        throw new Error(`Failed to save pre-survey data (${res.status})`);
+        const msg = await res.text();
+        throw new Error(msg);
       }
 
       router.push("/experiment");
     } catch (err) {
-      console.error("PreSurvey save error:", err);
-      alert("Error saving responses. Please try again.");
+      console.error("Pre-survey save error:", err);
+      alert("Failed to save pre-survey responses. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   /* -------------------------------
-     Auto-calc arrow path (responsive)
-     - From guide modal card → left task panel anchor
+     Arrow auto-calculation
   -------------------------------- */
   useEffect(() => {
     if (!showGuide) {
@@ -168,134 +171,86 @@ export default function PreSurvey() {
     const compute = () => {
       const cardEl = guideCardRef.current;
       const anchorEl = taskPanelAnchorRef.current;
-
-      if (!cardEl || !anchorEl) {
-        setArrowPath("");
-        return;
-      }
+      if (!cardEl || !anchorEl) return;
 
       const card = cardEl.getBoundingClientRect();
       const anchor = anchorEl.getBoundingClientRect();
 
-      // Start point: left-middle of the guide card
-      const startX = Math.max(0, card.left);
+      const startX = card.left;
       const startY = card.top + card.height * 0.55;
-
-      // End point: near the task panel header area
-      const endX = anchor.left + Math.min(anchor.width, 260) * 0.25;
+      const endX = anchor.left + anchor.width * 0.3;
       const endY = anchor.top + anchor.height * 0.6;
 
-      // Smooth cubic bezier control points
       const dx = Math.abs(startX - endX);
-      const c1X = startX - Math.max(120, dx * 0.35);
-      const c1Y = startY + 40;
-      const c2X = endX + Math.max(140, dx * 0.25);
-      const c2Y = endY - 40;
+      const d = `M ${startX} ${startY}
+                 C ${startX - Math.max(120, dx * 0.35)} ${startY + 40},
+                   ${endX + Math.max(140, dx * 0.25)} ${endY - 40},
+                   ${endX} ${endY}`;
 
-      const d = `M ${startX} ${startY} C ${c1X} ${c1Y}, ${c2X} ${c2Y}, ${endX} ${endY}`;
       setArrowPath(d);
     };
 
     compute();
-
-    const onResize = () => compute();
-    window.addEventListener("resize", onResize);
-
-    // Also recompute after layout settles (fonts, etc.)
-    const t = window.setTimeout(compute, 60);
-
-    return () => {
-      window.removeEventListener("resize", onResize);
-      window.clearTimeout(t);
-    };
+    window.addEventListener("resize", compute);
+    return () => window.removeEventListener("resize", compute);
   }, [showGuide, panelOpen, expandGuideTask]);
 
-  const closeGuide = () => {
-    setShowGuide(false);
-    setArrowPath("");
-  };
-
+  /* -------------------------------
+     Render
+  -------------------------------- */
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Progress bar */}
-      <div className="bg-gray-50 border-b border-gray-200 sticky top-0 z-40">
+      <div className="border-b bg-white sticky top-0 z-40">
         <div className="max-w-[1100px] mx-auto px-6 py-4">
           <ProgressBar progress={50} />
         </div>
       </div>
 
       <div className="flex">
-        {/* Left: Search Task (Wing Panel) */}
+        {/* Left wing panel */}
         <div
-          className={[
-            "bg-gray-50 border-r border-gray-200",
-            "sticky top-[72px] h-[calc(100vh-72px)]",
-            "transition-all duration-300 ease-in-out",
-            panelOpen ? "w-[22%] min-w-[280px]" : "w-[64px] min-w-[64px]",
-          ].join(" ")}
+          className={`bg-gray-50 border-r border-gray-200 sticky top-[72px] h-[calc(100vh-72px)]
+          transition-all duration-300 ${panelOpen ? "w-[22%]" : "w-[64px]"}`}
         >
-          <div className={panelOpen ? "p-6" : "p-3"}>
-            <div className="flex items-center justify-between">
-              <button
-                onClick={() => setPanelOpen((v) => !v)}
-                className={[
-                  "flex items-center justify-center rounded-md border border-gray-200 bg-white",
-                  "shadow-sm hover:bg-gray-50 transition-colors",
-                  panelOpen ? "w-10 h-10" : "w-10 h-10",
-                ].join(" ")}
-                aria-label={panelOpen ? "Collapse task panel" : "Expand task panel"}
-                title={panelOpen ? "Collapse" : "Expand"}
-              >
-                {panelOpen ? "←" : "→"}
-              </button>
+          <div className="p-4">
+            <button
+              onClick={() => setPanelOpen((v) => !v)}
+              className="mb-4 w-10 h-10 rounded border bg-white shadow"
+            >
+              {panelOpen ? "←" : "→"}
+            </button>
 
+            <div ref={taskPanelAnchorRef}>
               {panelOpen && (
-                <div className="ml-3 flex-1">
-                  <div ref={taskPanelAnchorRef} className="flex items-center justify-between">
-                    <h2 className="text-lg font-semibold text-gray-700">Your Search Task</h2>
-                    <span className="text-gray-500 text-sm">Pinned</span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {!panelOpen && (
-              <div ref={taskPanelAnchorRef} className="mt-4 flex flex-col items-center gap-2">
-                <div className="text-xs text-gray-600 rotate-90 whitespace-nowrap">Search Task</div>
-              </div>
-            )}
-
-            {panelOpen && (
-              <div className="mt-4 overflow-y-auto pr-1">
-                {assignedTasks.length === 0 ? (
-                  <p className="text-gray-600 text-sm">No task found.</p>
-                ) : (
-                  <div className="space-y-5">
+                <>
+                  <h2 className="text-lg font-semibold mb-3">Your Search Task</h2>
+                  <div className="space-y-4">
                     {assignedTasks.map((t, i) => (
-                      <div key={i} className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-                        <div className="text-xs font-semibold text-gray-600 mb-2">Task {i + 1}</div>
-                        <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">{t}</p>
+                      <div key={i} className="bg-white p-3 rounded border text-sm whitespace-pre-wrap">
+                        <strong>Task {i + 1}</strong>
+                        <div className="mt-1">{t}</div>
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
-            )}
+                </>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Right: Survey */}
-        <div className="flex-1 bg-white flex justify-center overflow-y-auto">
-          <div className="w-full max-w-[1000px] px-8 py-12">
+        {/* Survey */}
+        <div className="flex-1 flex justify-center overflow-y-auto">
+          <div className="max-w-[1000px] w-full px-8 py-12 bg-white">
             <h1 className="text-3xl font-semibold mb-10 text-center">Pre-Survey</h1>
 
             {/* Familiarity */}
             <h2 className="text-xl font-semibold mb-4">About the given search task</h2>
 
             <div className="flex justify-end mb-4">
-              <div className="flex justify-between gap-6 text-sm text-gray-600 font-medium w-[600px]">
-                {familiarityLabels.map((l, i) => (
-                  <span key={i} className="text-center w-[100px]">
+              <div className="flex justify-between w-[600px] text-sm text-gray-600">
+                {familiarityLabels.map((l) => (
+                  <span key={l} className="w-[100px] text-center">
                     {l}
                   </span>
                 ))}
@@ -303,20 +258,16 @@ export default function PreSurvey() {
             </div>
 
             <div className="space-y-8 mb-14">
-              {familiarityQuestions.map((q, i) => (
-                <div
-                  key={i}
-                  className="grid grid-cols-[minmax(420px,1fr)_auto] gap-8 items-center border-b pb-4"
-                >
-                  <p className="text-gray-800">{q}</p>
-                  <div className="flex justify-between gap-6 bg-gray-50 rounded-lg px-6 py-3 w-[600px]">
-                    {[1, 2, 3, 4, 5].map((val) => (
+              {familiarityQuestions.map((q) => (
+                <div key={q} className="grid grid-cols-[minmax(420px,1fr)_auto] gap-8 border-b pb-4">
+                  <p>{q}</p>
+                  <div className="flex justify-between w-[600px] bg-gray-50 px-6 py-3 rounded">
+                    {[1, 2, 3, 4, 5].map((v) => (
                       <input
-                        key={val}
+                        key={v}
                         type="radio"
-                        name={q}
-                        checked={responses[q] === val}
-                        onChange={() => handleChange(q, val)}
+                        checked={responses[q] === v}
+                        onChange={() => handleChange(q, v)}
                         className="w-5 h-5 accent-blue-600"
                       />
                     ))}
@@ -326,12 +277,14 @@ export default function PreSurvey() {
             </div>
 
             {/* Self-efficacy */}
-            <h2 className="text-xl font-semibold mb-4">Pre-Search Self-Efficacy (Heppner & Petersen, 1982)</h2>
+            <h2 className="text-xl font-semibold mb-4">
+              Pre-Search Self-Efficacy (Heppner & Petersen, 1982)
+            </h2>
 
             <div className="flex justify-end mb-4">
-              <div className="flex justify-between gap-6 text-sm text-gray-600 font-medium w-[720px]">
-                {selfEfficacyLabels.map((l, i) => (
-                  <span key={i} className="text-center w-[100px]">
+              <div className="flex justify-between w-[720px] text-sm text-gray-600">
+                {selfEfficacyLabels.map((l) => (
+                  <span key={l} className="w-[100px] text-center">
                     {l}
                   </span>
                 ))}
@@ -339,20 +292,16 @@ export default function PreSurvey() {
             </div>
 
             <div className="space-y-8">
-              {selfEfficacyQuestions.map((q, i) => (
-                <div
-                  key={i}
-                  className="grid grid-cols-[minmax(420px,1fr)_auto] gap-8 items-center border-b pb-4"
-                >
-                  <p className="text-gray-800">{q}</p>
-                  <div className="flex justify-between gap-6 bg-gray-50 rounded-lg px-6 py-3 w-[720px]">
-                    {[1, 2, 3, 4, 5, 6].map((val) => (
+              {selfEfficacyQuestions.map((q) => (
+                <div key={q} className="grid grid-cols-[minmax(420px,1fr)_auto] gap-8 border-b pb-4">
+                  <p>{q}</p>
+                  <div className="flex justify-between w-[720px] bg-gray-50 px-6 py-3 rounded">
+                    {[1, 2, 3, 4, 5, 6].map((v) => (
                       <input
-                        key={val}
+                        key={v}
                         type="radio"
-                        name={q}
-                        checked={responses[q] === val}
-                        onChange={() => handleChange(q, val)}
+                        checked={responses[q] === v}
+                        onChange={() => handleChange(q, v)}
                         className="w-5 h-5 accent-blue-600"
                       />
                     ))}
@@ -365,7 +314,7 @@ export default function PreSurvey() {
               <button
                 onClick={handleSubmit}
                 disabled={loading}
-                className="px-10 py-4 bg-blue-600 text-white font-semibold rounded-lg text-lg hover:bg-blue-700 disabled:opacity-50"
+                className="px-10 py-4 bg-blue-600 text-white rounded-lg font-semibold text-lg"
               >
                 {loading ? "Submitting..." : "Next"}
               </button>
@@ -374,82 +323,36 @@ export default function PreSurvey() {
         </div>
       </div>
 
-      {/* Arrow overlay (responsive) */}
+      {/* Arrow */}
       {showGuide && arrowPath && (
-        <svg
-          className="fixed inset-0 z-[55] pointer-events-none"
-          width="100%"
-          height="100%"
-          viewBox={`0 0 ${typeof window !== "undefined" ? window.innerWidth : 1440} ${
-            typeof window !== "undefined" ? window.innerHeight : 900
-          }`}
-          preserveAspectRatio="none"
-        >
-          <defs>
-            <marker id="arrowHeadWhite" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="white" />
-            </marker>
-          </defs>
+        <svg className="fixed inset-0 z-[55] pointer-events-none">
           <path
             d={arrowPath}
             stroke="white"
             strokeWidth="6"
             strokeDasharray="12 10"
             fill="none"
-            markerEnd="url(#arrowHeadWhite)"
           />
         </svg>
       )}
 
-      {/* Guide overlay (modal) */}
+      {/* Guide modal */}
       {showGuide && (
-        <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center p-6">
-          <div ref={guideCardRef} className="bg-white rounded-lg shadow-xl w-full max-w-[720px] p-8 relative">
+        <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center">
+          <div ref={guideCardRef} className="bg-white p-8 rounded-lg shadow-xl max-w-[720px]">
             <h2 className="text-2xl font-semibold mb-4">Before You Begin</h2>
-
-            <p className="text-gray-700 leading-relaxed mb-5">
-              On this task, you will see your assigned search task. You may expand or collapse it at any time. Please
-              read the task carefully before answering the following questions.
+            <p className="mb-6 text-gray-700">
+              On this task, you will see your assigned search task on the left.
+              You may expand or collapse it at any time. Please read it carefully
+              before answering the following questions.
             </p>
 
-            {/* Modal “wing” task (expand/collapse) */}
-            <div className="border border-gray-200 rounded-lg bg-gray-50 p-4 mb-6">
-              <button
-                onClick={() => setExpandGuideTask((v) => !v)}
-                className="w-full flex items-center justify-between"
-              >
-                <span className="font-semibold text-gray-800">Your Search Task</span>
-                <span className="text-gray-600">{expandGuideTask ? "▾" : "▸"}</span>
-              </button>
-
-              <div
-                className={[
-                  "transition-all duration-300 ease-in-out overflow-hidden",
-                  expandGuideTask ? "max-h-56 mt-3" : "max-h-0",
-                ].join(" ")}
-              >
-                {assignedTasks.length === 0 ? (
-                  <p className="text-sm text-gray-600">No task found.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {assignedTasks.map((t, i) => (
-                      <div key={i} className="bg-white rounded-md border border-gray-200 p-3">
-                        <div className="text-xs font-semibold text-gray-600 mb-1">Task {i + 1}</div>
-                        <div className="text-sm text-gray-800 whitespace-pre-wrap max-h-36 overflow-y-auto">
-                          {t}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="text-right">
-              <button onClick={closeGuide} className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold">
-                Got it
-              </button>
-            </div>
+            <button
+              onClick={() => setShowGuide(false)}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold"
+            >
+              Got it
+            </button>
           </div>
         </div>
       )}
