@@ -17,6 +17,9 @@ export async function POST(req) {
     if (!Task_type) {
       throw new Error("Task_type is required");
     }
+    
+    if (!process.env.AIRTABLE_BASE_ID) throw new Error("Missing AIRTABLE_BASE_ID");
+    if (!process.env.AIRTABLE_API_KEY) throw new Error("Missing AIRTABLE_API_KEY");
 
     const fields = {
       participant_id,
@@ -26,8 +29,11 @@ export async function POST(req) {
       // created_at ❌ Airtable 자동
     };
 
+    // Airtable table name (or better: put a table ID like "tblXXXX" here)
+    const table = process.env.AIRTABLE_PRE_SURVEY_TABLE || "Pre-Survey";
+
     const res = await fetch(
-      `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/pre_survey`,
+      `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${encodeURIComponent(table)}`,
       {
         method: "POST",
         headers: {
@@ -44,7 +50,11 @@ export async function POST(req) {
 
     if (!res.ok) {
       console.error("Airtable pre-survey error:", data);
-      throw new Error("Failed to save pre-survey");
+      const msg = 
+          data?.error?.message ||
+          data?.error ||
+          JSON.stringify(data);
+        throw new Error(msg);
     }
 
     return NextResponse.json({ success: true });

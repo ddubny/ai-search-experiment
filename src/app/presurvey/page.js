@@ -134,7 +134,7 @@ export default function PreSurvey() {
     try {
       setLoading(true);
 
-      const res = await fetch("/api/pre-survey", {
+      const res = await fetch("/api/airtable/pre-survey", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
