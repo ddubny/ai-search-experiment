@@ -35,12 +35,17 @@ export default function Experiment() {
       return;
     }
     setParticipantId(id);
-
-    const assigned = localStorage.getItem("assignedScenario");
-    if (assigned) {
-      const parsed = JSON.parse(assigned);
-      setScenario(parsed.scenario);
-      setTask(parsed.task);
+    
+    const storedCase = localStorage.getItem("search_case");
+    const storedTask = localStorage.getItem("search_task");
+    const taskType = localStorage.getItem("task_type");
+    
+    if (storedCase) {
+      setScenario(storedCase);
+    }
+    
+    if (storedTask) {
+      setTask(storedTask);
     }
 
     const storedSystem = localStorage.getItem("systemType");
@@ -178,7 +183,7 @@ ${searchQuery}
             </div>
 
             <p className="text-red-600 font-medium text-sm">
-              You must search for at least 4 minutes before proceeding.
+              You should search for at least 4 minutes.
             </p>
 
             <button
