@@ -10,7 +10,7 @@ export default function Experiment() {
   const [step, setStep] = useState(1);
   const [participantId, setParticipantId] = useState(null);
   const [scenario, setScenario] = useState("");
-  const [systemType, setSystemType] = useState("genai");
+  const [systemType, setSystemType] = useState(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -33,7 +33,13 @@ export default function Experiment() {
     const storedScenario = localStorage.getItem("scenario");
     const storedSystem = localStorage.getItem("systemType");
     if (storedScenario) setScenario(storedScenario);
-    if (storedSystem) setSystemType(storedSystem);
+    if (storedSystem === "search" || storedSystem === "genai") {
+       setSystemType(storedSystem);
+    } else {
+      const assignedType = Math.random() < 0.5 ? "search" : "genai";
+      localStorage.setItem("systemType", assignedType);
+      setSystemType(assignedType);
+    }
 
     const savedScraps = localStorage.getItem("scrapbook");
     if (savedScraps) setScraps(JSON.parse(savedScraps));
