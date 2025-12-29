@@ -23,7 +23,7 @@ export default function Experiment() {
   // GenAI Chat
   const [chatHistory, setChatHistory] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [answerLength, setAnswerLength] = useState(300);
+  const [answerLength, setAnswerLength] = useState(150);
 
   // Common
   const [scraps, setScraps] = useState([]);
@@ -380,6 +380,23 @@ ${userInput}
                       : ""
                   }`}
                 />
+                {/* Answer Length Control (GenAI only) */}
+                <div className="px-4 pb-2 pt-2 text-xs text-gray-600 flex items-center gap-3 border-t bg-white">
+                  <span className="whitespace-nowrap">Answer length</span>
+                  <input
+                    type="range"
+                    min={150}
+                    max={800}
+                    step={50}
+                    value={answerLength}
+                    onChange={(e) => setAnswerLength(Number(e.target.value))}
+                    disabled={isGenerating}
+                    className="flex-1"
+                  />
+                  <span className="w-10 text-right">{answerLength}</span>
+                </div>
+
+
               </form>
             </div>
           )}
