@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 
+console.log("Gemini API called");
+
 export async function POST(req) {
   try {
     const { prompt } = await req.json();

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+console.log("SearchEngine API called:", q);
+
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
