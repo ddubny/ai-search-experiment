@@ -127,10 +127,9 @@ export default function Experiment() {
 
     try {
       const prompt = `
-      Please answer briefly.
-      실제로 친절하게 답변하듯이 대답해줘. 
-      필요할 시에 Use clear headings, bullet points, and formatting to organize the information.
-      답변의 마지막에는 꼭 3~5가지 정도 다음에  additional searching or questions 무엇을 물어보면 좋을 지 제안을 해줘.
+        Please answer briefly and kindly, as if responding in a friendly and helpful manner.
+        When necessary, use clear headings, bullet points, and formatting to organize the information.
+        At the end of the response, always include 3 to 5 numbered suggestions for additional searching or follow-up questions.
       
       User:
       ${userInput}
