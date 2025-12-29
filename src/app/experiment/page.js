@@ -339,8 +339,26 @@ export default function Experiment() {
                     }
                     className="bg-white border p-3 mb-3 rounded cursor-grab"
                   >
-                    <h3 className="font-semibold">{r.title}</h3>
-                    <p className="text-sm">{r.snippet}</p>
+                    <h3 className="font-semibold text-blue-700 hover:underline">
+                      <a
+                        href={r.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {r.title}  
+                      </a>
+                    </h3>
+                    <p className="text-sm mt-1">{r.snippet}</p>
+                    <a
+                       href={r.link}
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       className="text-xs text-green-700 break-all hover:underline mt-1 inline-block"
+                       onClick={(e) => e.stopPropagation()}
+                    >
+                      {r.link}
+                    </a>
                   </div>
                 ))}
               </div>
