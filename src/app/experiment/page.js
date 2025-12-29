@@ -50,6 +50,7 @@ export default function Experiment() {
   ========================= */
   const handleSearch = async (e) => {
     e.preventDefault();
+    console.log("systemType:", systemType);
     if (!searchQuery.trim()) return;
 
     try {
@@ -93,6 +94,8 @@ Please provide an informative response to help the user make an informed decisio
         });
 
         const data = await res.json();
+        console.log("Gemini raw response:", data);
+
 
         setSearchResults([
           {
