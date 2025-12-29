@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 
-console.log("SearchEngine API called:", q);
 
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const q = (searchParams.get("q") || "").trim();
+    console.log("SearchEngine API called:", q);
     const start = searchParams.get("start") || "1"; // pagination (1, 11, 21...)
 
     if (!q) {
