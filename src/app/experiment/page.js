@@ -6,9 +6,11 @@ import ProgressBar from "../../components/ProgressBar";
 import ReactMarkdown from "react-markdown";
 
 const REQUIRED_TIME = 240; // 4 minutes
+const REQUIRED_QUESTIONS = 5;
 
 export default function Experiment() {
   const router = useRouter();
+
   const [questionCount, setQuestionCount] = useState(0);
   const [showIntroModal, setShowIntroModal] = useState(true);
 
@@ -32,8 +34,8 @@ export default function Experiment() {
   const [seconds, setSeconds] = useState(0);
   const [taskOpen, setTaskOpen] = useState(true);
   const [loading, setLoading] = useState(true);
-  const canProceed =
-  seconds >= REQUIRED_TIME && questionCount >= 5;
+
+  const canProceed = seconds >= REQUIRED_TIME && questionCount >= REQUIRED_QUESTIONS;
 
   /* =========================
      Initial setup
@@ -49,10 +51,10 @@ export default function Experiment() {
     // Load task assignment from TaskPage
     const storedCase = localStorage.getItem("search_case");
     const storedTask = localStorage.getItem("search_task");
-
     if (storedCase) setScenario(storedCase);
     if (storedTask) setTask(storedTask);
 
+    // Assign system type (persist)
     const storedSystem = localStorage.getItem("systemType");
     if (storedSystem === "search" || storedSystem === "genai") {
       setSystemType(storedSystem);
@@ -62,8 +64,15 @@ export default function Experiment() {
       setSystemType(assignedType);
     }
 
+    // Load scrapbook
     const savedScraps = localStorage.getItem("scrapbook");
-    if (savedScraps) setScraps(JSON.parse(savedScraps));
+    if (savedScraps) {
+      try {
+        setScraps(JSON.parse(savedScraps));
+      } catch {
+        // ignore malformed
+      }
+    }
 
     setLoading(false);
   }, []);
@@ -74,12 +83,15 @@ export default function Experiment() {
 
   /* =========================
      TIMER (STEP 2)
+     Start only after intro modal is closed
   ========================= */
   useEffect(() => {
     if (step !== 2 || showIntroModal) return;
+
     const timer = setInterval(() => {
       setSeconds((prev) => prev + 1);
     }, 1000);
+
     return () => clearInterval(timer);
   }, [step, showIntroModal]);
 
@@ -88,14 +100,14 @@ export default function Experiment() {
   ========================= */
   const handleSearch = async (e) => {
     e.preventDefault();
-    if (!searchQuery.trim()) return;
+    const q = searchQuery.trim();
+    if (!q) return;
 
+    // Count only valid queries
     setQuestionCount((prev) => prev + 1);
 
     try {
-      const res = await fetch(
-        `/api/SearchEngine?q=${encodeURIComponent(searchQuery)}&start=1`
-      );
+      const res = await fetch(`/api/SearchEngine?q=${encodeURIComponent(q)}&start=1`);
       const data = await res.json();
 
       const results =
@@ -118,10 +130,13 @@ export default function Experiment() {
   ========================= */
   const handleGenAISubmit = async (e) => {
     e.preventDefault();
-    if (!searchQuery.trim() || isGenerating) return;
+    const userInput = searchQuery.trim();
+    if (!userInput || isGenerating) return;
 
-    const userInput = searchQuery;
+    // Count only valid user questions
     setQuestionCount((prev) => prev + 1);
+
+    // Append user + loading assistant
     setChatHistory((prev) => [
       ...prev,
       { role: "user", content: userInput },
@@ -133,12 +148,12 @@ export default function Experiment() {
 
     try {
       const prompt = `
-        Please answer briefly and kindly, as if responding in a friendly and helpful manner.
-        When necessary, use clear headings, bullet points, and formatting to organize the information.
-        At the end of the response, always include 3 to 5 numbered suggestions for additional searching or follow-up questions.
-      
-      User:
-      ${userInput}
+Please answer briefly and kindly, as if responding in a friendly and helpful manner.
+When necessary, use clear headings, bullet points, and formatting to organize the information.
+At the end of the response, always include 3 to 5 numbered suggestions for additional searching or follow-up questions.
+
+User:
+${userInput}
       `.trim();
 
       const res = await fetch("/api/llm", {
@@ -154,20 +169,35 @@ export default function Experiment() {
 
       setChatHistory((prev) => {
         const updated = [...prev];
-        updated[updated.length - 1] = {
-          role: "assistant",
-          content: data.text || "No response generated.",
-        };
+        // Replace the last "loading" assistant message safely
+        const lastIdx = updated.length - 1;
+        if (lastIdx >= 0 && updated[lastIdx]?.role === "assistant" && updated[lastIdx]?.loading) {
+          updated[lastIdx] = {
+            role: "assistant",
+            content: data?.text || "No response generated.",
+          };
+        } else {
+          // fallback: append if structure changed unexpectedly
+          updated.push({ role: "assistant", content: data?.text || "No response generated." });
+        }
         return updated;
       });
     } catch (err) {
       console.error(err);
       setChatHistory((prev) => {
         const updated = [...prev];
-        updated[updated.length - 1] = {
-          role: "assistant",
-          content: "An error occurred while generating the response.",
-        };
+        const lastIdx = updated.length - 1;
+        if (lastIdx >= 0 && updated[lastIdx]?.role === "assistant" && updated[lastIdx]?.loading) {
+          updated[lastIdx] = {
+            role: "assistant",
+            content: "An error occurred while generating the response.",
+          };
+        } else {
+          updated.push({
+            role: "assistant",
+            content: "An error occurred while generating the response.",
+          });
+        }
         return updated;
       });
     } finally {
@@ -182,10 +212,23 @@ export default function Experiment() {
     e.preventDefault();
     const raw = e.dataTransfer.getData("text/plain");
     if (!raw) return;
+
     try {
       const dropped = JSON.parse(raw);
-      setScraps([...scraps, { ...dropped, comment: "" }]);
-    } catch {}
+      // Use functional update to avoid stale-state bugs
+      setScraps((prev) => [...prev, { ...dropped, comment: "" }]);
+    } catch {
+      // ignore invalid payload
+    }
+  };
+
+  const handleUpdateScrapComment = (index, value) => {
+    setScraps((prev) => {
+      const next = [...prev];
+      if (!next[index]) return prev;
+      next[index] = { ...next[index], comment: value };
+      return next;
+    });
   };
 
   const handleNext = () => {
@@ -225,7 +268,11 @@ export default function Experiment() {
             </p>
 
             <button
-              onClick={() => setStep(2)}
+              onClick={() => {
+                setStep(2);
+                // Ensure the modal is shown when entering step 2
+                setShowIntroModal(true);
+              }}
               className="bg-blue-600 text-white px-6 py-3 rounded-lg"
             >
               Start Experiment →
@@ -245,8 +292,7 @@ export default function Experiment() {
 
       {/* Timer */}
       <div className="fixed top-4 right-6 bg-black text-white px-4 py-2 rounded-md text-sm z-50">
-        Time: {Math.floor(seconds / 60)}:
-        {(seconds % 60).toString().padStart(2, "0")}
+        Time: {Math.floor(seconds / 60)}:{(seconds % 60).toString().padStart(2, "0")}
       </div>
 
       <div className="flex flex-1 overflow-hidden">
@@ -274,24 +320,19 @@ export default function Experiment() {
               {/* Researcher Notes */}
               <div className="bg-white border rounded-lg p-3 text-sm italic text-gray-600 leading-relaxed">
                 <p>
-                  Please feel free to search freely regarding the search task
-                  below. You can also use the scrapbook to save anything you want
+                  Please feel free to search freely regarding the search task below. You can also use the scrapbook to save anything you want
                   to keep for later.
                 </p>
                 <p className="mt-2">
-                  You should spend at least four minutes searching and make
-                  multiple meaningful search attempts during that time.
+                  You should spend at least four minutes searching and make multiple meaningful search attempts during that time.
                 </p>
                 <p className="mt-2">
-                  If the conditions are met, a button to proceed will appear in
-                  the bottom right corner.
+                  If the conditions are met, a button to proceed will appear in the bottom right corner.
                 </p>
               </div>
 
               <div>
-                <h3 className="font-semibold mb-1 text-base">
-                  Search Scenario
-                </h3>
+                <h3 className="font-semibold mb-1 text-base">Search Scenario</h3>
                 <p className="text-base">{scenario}</p>
               </div>
 
@@ -302,26 +343,29 @@ export default function Experiment() {
             </div>
           )}
         </div>
+
+        {/* Intro Modal: blocks interaction until closed */}
         {showIntroModal && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-            <div className="bg-white max-w-lg w-full p-6 rounded-xl relative">
+            <div className="bg-white max-w-lg w-full p-6 rounded-xl relative shadow-lg">
               <button
                 onClick={() => setShowIntroModal(false)}
                 className="absolute top-3 right-3 text-gray-500 text-xl"
+                aria-label="Close"
               >
                 ×
               </button>
 
-              <h2 className="text-xl font-semibold mb-4">
-                Before you begin
-              </h2>
+              <h2 className="text-xl font-semibold mb-4">Before you begin</h2>
 
               <p className="text-sm leading-relaxed">
-                Please search freely regarding the assigned task.
-                You must spend at least four minutes searching and
-                make multiple meaningful search attempts.
+                Please search freely regarding the assigned task. You must spend at least four minutes searching and make multiple meaningful search attempts.
                 After meeting the conditions, you may proceed.
               </p>
+
+              <div className="mt-5 text-xs text-gray-500">
+                Your timer will start after you close this window.
+              </div>
             </div>
           </div>
         )}
@@ -337,8 +381,13 @@ export default function Experiment() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="flex-1 border px-3 py-2"
                   placeholder="Type your query..."
+                  disabled={showIntroModal}
                 />
-                <button className="bg-blue-600 text-white px-4">
+                <button
+                  className="bg-blue-600 text-white px-4 disabled:opacity-50"
+                  disabled={showIntroModal}
+                  type="submit"
+                >
                   Search
                 </button>
               </form>
@@ -348,12 +397,7 @@ export default function Experiment() {
                   <div
                     key={r.id}
                     draggable
-                    onDragStart={(e) =>
-                      e.dataTransfer.setData(
-                        "text/plain",
-                        JSON.stringify(r)
-                      )
-                    }
+                    onDragStart={(e) => e.dataTransfer.setData("text/plain", JSON.stringify(r))}
                     className="bg-white border p-3 mb-3 rounded cursor-grab"
                   >
                     <h3 className="font-semibold text-blue-700 hover:underline">
@@ -363,16 +407,16 @@ export default function Experiment() {
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        {r.title}  
+                        {r.title}
                       </a>
                     </h3>
                     <p className="text-sm mt-1">{r.snippet}</p>
                     <a
-                       href={r.link}
-                       target="_blank"
-                       rel="noopener noreferrer"
-                       className="text-xs text-green-700 break-all hover:underline mt-1 inline-block"
-                       onClick={(e) => e.stopPropagation()}
+                      href={r.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-green-700 break-all hover:underline mt-1 inline-block"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       {r.link}
                     </a>
@@ -383,16 +427,13 @@ export default function Experiment() {
           ) : (
             /* GenAI Chat UI */
             <div className="flex flex-col h-full bg-gray-50">
-              
               <div className="flex-1 p-4 overflow-y-auto">
                 <div className="mx-auto w-full max-w-3xl space-y-4">
                   {chatHistory.map((msg, idx) => (
                     <div
                       key={idx}
                       className={`p-4 rounded-xl text-base leading-relaxed ${
-                        msg.role === "assistant"
-                          ? "bg-white border"
-                          : "bg-blue-600 text-white ml-auto max-w-lg"
+                        msg.role === "assistant" ? "bg-white border" : "bg-blue-600 text-white ml-auto max-w-lg"
                       }`}
                     >
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
@@ -403,23 +444,23 @@ export default function Experiment() {
 
               <form
                 onSubmit={handleGenAISubmit}
-                 className="border-t bg-white py-4 flex justify-center"
+                className="border-t bg-white py-4 flex justify-center"
               >
                 <div className="w-full max-w-xl flex items-center gap-2">
                   <input
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Ask anything"
-                    disabled={isGenerating}
-                    className="w-full border rounded-full px-4 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  />  
+                    disabled={isGenerating || showIntroModal}
+                    className="w-full border rounded-full px-4 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100"
+                  />
                   <button
                     type="submit"
-                    disabled={isGenerating || !searchQuery.trim()}
+                    disabled={isGenerating || showIntroModal || !searchQuery.trim()}
                     className="ml-2 px-4 py-2 rounded-full bg-blue-600 text-white disabled:opacity-50"
-                  >   
+                  >
                     Enter
-                  </button>              
+                  </button>
                 </div>
               </form>
             </div>
@@ -436,35 +477,33 @@ export default function Experiment() {
           <div className="p-4 border-b">
             <h2 className="font-semibold mb-3">Scrapbook</h2>
           </div>
-         {/* Scrap list (scrollable) */}  
-         <div className="flex-1 p-4 overflow-y-auto">
-          {scraps.map((item, i) => (
-            <div key={i} className="bg-white p-3 mb-3 rounded border">
-              <p className="text-sm">{item.snippet}</p>
-              <textarea
-                className="w-full border mt-2 p-2 text-sm"
-                placeholder="Your notes..."
-                value={item.comment}
-                onChange={(e) => {
-                  const updated = [...scraps];
-                  updated[i].comment = e.target.value;
-                  setScraps(updated);
-                }}
-              />
-            </div>
-          ))}
-        </div>
 
-        {/* Proceed button area */}
-        <div className="p-4 border-t"> 
-          {canProceed && (
-            <button
-              onClick={handleNext}
-              className="w-full mt-4 bg-blue-600 text-white py-3 rounded-lg"
-            >
-              Proceed to Next Step →
-            </button>
-           )}
+          {/* Scrap list (scrollable) */}
+          <div className="flex-1 p-4 overflow-y-auto">
+            {scraps.map((item, i) => (
+              <div key={i} className="bg-white p-3 mb-3 rounded border">
+                <p className="text-sm">{item.snippet}</p>
+                <textarea
+                  className="w-full border mt-2 p-2 text-sm"
+                  placeholder="Your notes..."
+                  value={item.comment}
+                  onChange={(e) => handleUpdateScrapComment(i, e.target.value)}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Proceed button area (fixed at bottom of scrapbook column) */}
+          <div className="p-4 border-t">
+            {canProceed && (
+              <button
+                onClick={handleNext}
+                className="w-full bg-blue-600 text-white py-3 rounded-lg"
+              >
+                Proceed to Next Step →
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
