@@ -173,14 +173,14 @@ ${searchQuery}
 
         <div className="flex flex-1 items-center justify-center">
           <div className="max-w-2xl w-full text-center space-y-6">
-            <h1 className="text-3xl font-bold">Now you will start a search</h1>
+            <h1 className="text-3xl font-bold">Now you will start a search!🚀</h1>
 
             <div className="bg-gray-100 p-6 rounded-lg text-left space-y-2">
               <p className="font-semibold">Scenario</p>
-              <p className="text-sm">{scenario}</p>
+              <p className="text-base">{scenario}</p>
 
               <p className="font-semibold pt-2">Search Task</p>
-              <p className="text-sm">{task}</p>
+              <p className="text-base">{task}</p>
             </div>
 
             <p className="text-red-600 font-medium text-sm">
@@ -251,14 +251,14 @@ ${searchQuery}
 
               {/* Scenario */}
               <div>
-                <h3 className="font-semibold mb-1 text-sm">Search Scenario</h3>
-                <p className="text-sm">{scenario}</p>
+                <h3 className="font-semibold mb-1 text-base">Search Scenario</h3>
+                <p className="text-base">{scenario}</p>
               </div>
 
               {/* Task */}
               <div>
-                <h3 className="font-semibold mb-1 text-sm">Search Task</h3>
-                <p className="text-sm">{task}</p>
+                <h3 className="font-semibold mb-1 text-base">Search Task</h3>
+                <p className="text-base">{task}</p>
               </div>
             </div>
           )}
