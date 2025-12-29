@@ -9,6 +9,8 @@ const REQUIRED_TIME = 240; // 4 minutes
 
 export default function Experiment() {
   const router = useRouter();
+  const [questionCount, setQuestionCount] = useState(0);
+  const [showIntroModal, setShowIntroModal] = useState(true);
 
   const [step, setStep] = useState(1);
   const [participantId, setParticipantId] = useState(null);
@@ -30,6 +32,8 @@ export default function Experiment() {
   const [seconds, setSeconds] = useState(0);
   const [taskOpen, setTaskOpen] = useState(true);
   const [loading, setLoading] = useState(true);
+  const canProceed =
+  seconds >= REQUIRED_TIME && questionCount >= 5;
 
   /* =========================
      Initial setup
@@ -72,12 +76,12 @@ export default function Experiment() {
      TIMER (STEP 2)
   ========================= */
   useEffect(() => {
-    if (step !== 2) return;
+    if (step !== 2 || showIntroModal) return;
     const timer = setInterval(() => {
       setSeconds((prev) => prev + 1);
     }, 1000);
     return () => clearInterval(timer);
-  }, [step]);
+  }, [step, showIntroModal]);
 
   /* =========================
      SEARCH ENGINE HANDLER
@@ -85,6 +89,8 @@ export default function Experiment() {
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
+
+    setQuestionCount((prev) => prev + 1);
 
     try {
       const res = await fetch(
@@ -115,7 +121,7 @@ export default function Experiment() {
     if (!searchQuery.trim() || isGenerating) return;
 
     const userInput = searchQuery;
-
+    setQuestionCount((prev) => prev + 1);
     setChatHistory((prev) => [
       ...prev,
       { role: "user", content: userInput },
@@ -296,6 +302,29 @@ export default function Experiment() {
             </div>
           )}
         </div>
+        {showIntroModal && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white max-w-lg w-full p-6 rounded-xl relative">
+              <button
+                onClick={() => setShowIntroModal(false)}
+                className="absolute top-3 right-3 text-gray-500 text-xl"
+              >
+                ×
+              </button>
+
+              <h2 className="text-xl font-semibold mb-4">
+                Before you begin
+              </h2>
+
+              <p className="text-sm leading-relaxed">
+                Please search freely regarding the assigned task.
+                You must spend at least four minutes searching and
+                make multiple meaningful search attempts.
+                After meeting the conditions, you may proceed.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Main Area */}
         <div className="flex-1 border-r overflow-hidden">
@@ -399,12 +428,16 @@ export default function Experiment() {
 
         {/* Scrapbook */}
         <div
-          className="w-[18%] min-w-[220px] bg-gray-50 p-4 overflow-y-auto border-l"
+          className="w-[18%] min-w-[220px] bg-gray-50 border-l flex flex-col"
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
         >
-          <h2 className="font-semibold mb-3">Scrapbook</h2>
-
+          {/* Title */}
+          <div className="p-4 border-b">
+            <h2 className="font-semibold mb-3">Scrapbook</h2>
+          </div>
+         {/* Scrap list (scrollable) */}  
+         <div className="flex-1 p-4 overflow-y-auto">
           {scraps.map((item, i) => (
             <div key={i} className="bg-white p-3 mb-3 rounded border">
               <p className="text-sm">{item.snippet}</p>
@@ -420,15 +453,18 @@ export default function Experiment() {
               />
             </div>
           ))}
+        </div>
 
-          {seconds >= REQUIRED_TIME && (
+        {/* Proceed button area */}
+        <div className="p-4 border-t"> 
+          {canProceed && (
             <button
               onClick={handleNext}
               className="w-full mt-4 bg-blue-600 text-white py-3 rounded-lg"
             >
               Proceed to Next Step →
             </button>
-          )}
+           )}
         </div>
       </div>
     </div>
