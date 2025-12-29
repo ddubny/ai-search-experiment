@@ -25,6 +25,7 @@ export async function POST(req) {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: prompt,
+      generationConfig: {maxOutputTokens: 80,  temperature: 0.5, topP: 0.9}, 
     });
 
     return NextResponse.json({ text: response.text });

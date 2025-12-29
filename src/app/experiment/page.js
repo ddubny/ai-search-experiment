@@ -127,8 +127,9 @@ export default function Experiment() {
 
     try {
       const prompt = `
-      Please answer briefly in plain text.
+      Please answer briefly with 2-3 points.
       Use clear headings, bullet points, and formatting to organize the information.
+      Focus on aspects that could prompt additional searching or questions.
 
       Scenario:
       ${scenario}
