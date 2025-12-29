@@ -215,23 +215,49 @@ ${searchQuery}
         {/* Left Task Panel */}
         <div
           className={`${
-            taskOpen ? "w-1/4 min-w-[280px]" : "w-12"
+            taskOpen ? "w-1/5 min-w-[220px]" : "w-12"
           } bg-gray-100 border-r transition-all duration-300 flex flex-col`}
         >
           <button
             onClick={() => setTaskOpen(!taskOpen)}
             className="p-2 text-sm font-medium hover:bg-gray-200"
           >
-            {taskOpen ? "◀ Search Task" : "▶"}
+            {taskOpen ? (
+              <span className="italic text-gray-700">
+                Click the button to collapse the panel
+              </span>
+            ) : (
+              "▶"
+            )
           </button>
 
           {taskOpen && (
-            <div className="p-4 overflow-y-auto">
-              <h3 className="font-semibold mb-2">Search Scenario</h3>
-              <p className="text-sm mb-4">{scenario}</p>
+            <div className="p-4 overflow-y-auto space-y-4">
+              {/* Researcher Notes */}
+              <div className="bg-white border border-gray-200 rounded-lg p-3 text-xs italic text-gray-600 leading-relaxed">
+                <p>
+                  Please feel free to search freely regarding the search task below.
+                  You can also use the scrapbook to save anything you want to keep for later.
+                </p>
+                <p className="mt-2">
+                  You should spend at least four minutes searching and make multiple meaningful search attempts during that time.
+                </p>
+                <p className="mt-2">
+                  If the conditions are met, a button to proceed will appear in the bottom right corner.
+                </p>
+              </div>
 
-              <h3 className="font-semibold mb-2">Search Task</h3>
-              <p className="text-sm">{task}</p>
+              {/* Scenario */}
+              <div>
+                <h3 className="font-semibold mb-1 text-sm">Search Scenario</h3>
+                <p className="text-sm">{scenario}</p>
+              </div>
+
+              {/* Task */}
+              <div>
+                <h3 className="font-semibold mb-1 text-sm">Search Task</h3>
+                <p className="text-sm">{task}</p>
+              </div>
             </div>
           )}
         </div>
