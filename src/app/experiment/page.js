@@ -23,7 +23,7 @@ export default function Experiment() {
   // GenAI Chat
   const [chatHistory, setChatHistory] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [answerLength, setAnswerLength] = useState(100);
+  const [answerLength, setAnswerLength] = useState(80);
 
   // Common
   const [scraps, setScraps] = useState([]);
@@ -127,20 +127,23 @@ export default function Experiment() {
 
     try {
       const prompt = `
-Scenario:
-${scenario}
+      Please provide a detailed and structured response concisely.
+      Use clear headings, bullet points, and formatting to organize the information.
 
-Task:
-${task}
-
-Conversation so far:
-${chatHistory
-  .filter((m) => !m.loading)
-  .map((m) => `${m.role}: ${m.content}`)
-  .join("\n")}
-
-User:
-${userInput}
+      Scenario:
+      ${scenario}
+      
+      Task:
+      ${task}
+      
+      Conversation so far:
+      ${chatHistory
+        .filter((m) => !m.loading)
+        .map((m) => `${m.role}: ${m.content}`)
+        .join("\n")}
+      
+      User:
+      ${userInput}
       `.trim();
 
       const res = await fetch("/api/llm", {
@@ -385,9 +388,9 @@ ${userInput}
                   <span className="whitespace-nowrap">Answer length</span>
                   <input
                     type="range"
-                    min={50}
-                    max={150}
-                    step={25}
+                    min={40}
+                    max={100}
+                    step={20}
                     value={answerLength}
                     onChange={(e) => setAnswerLength(Number(e.target.value))}
                     disabled={isGenerating}
