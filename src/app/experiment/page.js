@@ -10,7 +10,7 @@ export default function Experiment() {
   const [step, setStep] = useState(1);
   const [participantId, setParticipantId] = useState(null);
   const [scenario, setScenario] = useState("");
-  const [systemType, setSystemType] = useState("search");
+  const [systemType, setSystemType] = useState("genai");
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
