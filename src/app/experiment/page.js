@@ -127,9 +127,10 @@ export default function Experiment() {
 
     try {
       const prompt = `
-      Please answer briefly with 2-3 points.
-      Use clear headings, bullet points, and formatting to organize the information.
-      Focus on aspects that could prompt additional searching or questions.
+      Please answer briefly.
+      실제로 친절하게 답변하듯이 대답해줘. 
+      필요할 시에 Use clear headings, bullet points, and formatting to organize the information.
+      답변의 마지막에는 꼭 3~5가지 정도 다음에  additional searching or questions 무엇을 물어보면 좋을 지 제안을 해줘.
       
       User:
       ${userInput}
@@ -358,12 +359,10 @@ export default function Experiment() {
                 {chatHistory.map((msg, idx) => (
                   <div
                     key={idx}
-                    className={`max-w-[80%] p-3 rounded-lg text-sm ${
-                      msg.role === "user"
-                        ? "bg-blue-600 text-white ml-auto"
-                        : msg.loading
-                        ? "bg-gray-200 text-gray-500 italic"
-                        : "bg-white border text-gray-800"
+                    className={`p-4 rounded-xl text-base leading-relaxed ${
+                      msg.role === "assistant"
+                        ? "bg-white border"
+                        : "bg-blue-600 text-white ml-auto max-w-lg"
                     }`}
                   >
                     <ReactMarkdown>
@@ -380,13 +379,15 @@ export default function Experiment() {
                 <input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={
-                    isGenerating
-                      ? "Generating response..."
-                      : "Ask anything"
-                  }
+                  placeholder={isGenerating ? "Generating response..." : "Ask anything"}
                   disabled={isGenerating}
-                  className={`w-full border rounded-full px-4 py-2 ${
+                  style={{ 
+                    width: `${Math.min( 
+                      Math.max(searchQuery.length + 6, 20), 
+                      55 
+                    )}ch`,
+                   }}
+                  className={`border rounded-full px-4 py-2 transition-all duration-150 ${
                     isGenerating
                       ? "bg-gray-100 cursor-not-allowed"
                       : ""
