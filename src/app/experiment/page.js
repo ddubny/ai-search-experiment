@@ -355,45 +355,44 @@ export default function Experiment() {
           ) : (
             /* GenAI Chat UI */
             <div className="flex flex-col h-full bg-gray-50">
-              <div className="flex-1 p-4 overflow-y-auto space-y-4">
-                {chatHistory.map((msg, idx) => (
-                  <div
-                    key={idx}
-                    className={`p-4 rounded-xl text-base leading-relaxed ${
-                      msg.role === "assistant"
-                        ? "bg-white border"
-                        : "bg-blue-600 text-white ml-auto max-w-lg"
-                    }`}
-                  >
-                    <ReactMarkdown>
-                      {msg.content}
-                    </ReactMarkdown>
-                  </div>
-                ))}
+              
+              <div className="flex-1 p-4 overflow-y-auto">
+                <div className="mx-auto w-full max-w-3xl space-y-4">
+                  {chatHistory.map((msg, idx) => (
+                    <div
+                      key={idx}
+                      className={`p-4 rounded-xl text-base leading-relaxed ${
+                        msg.role === "assistant"
+                          ? "bg-white border"
+                          : "bg-blue-600 text-white ml-auto max-w-lg"
+                      }`}
+                    >
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <form
                 onSubmit={handleGenAISubmit}
-                className="border-t p-3 bg-white"
+                 className="border-t bg-white py-4 flex justify-center"
               >
-                <input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={isGenerating ? "Generating response..." : "Ask anything"}
-                  disabled={isGenerating}
-                  style={{ 
-                    width: `${Math.min( 
-                      Math.max(searchQuery.length + 6, 20), 
-                      55 
-                    )}ch`,
-                   }}
-                  className={`border rounded-full px-4 py-2 transition-all duration-150 ${
-                    isGenerating
-                      ? "bg-gray-100 cursor-not-allowed"
-                      : ""
-                  }`}
-                />
-
+                <div className="w-full max-w-xl flex items-center gap-2">
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Ask anything"
+                    disabled={isGenerating}
+                    className="w-full border rounded-full px-4 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  />  
+                  <button
+                    type="submit"
+                    disabled={isGenerating || !searchQuery.trim()}
+                    className="ml-2 px-4 py-2 rounded-full bg-blue-600 text-white disabled:opacity-50"
+                  >   
+                    Enter
+                  </button>              
+                </div>
               </form>
             </div>
           )}
