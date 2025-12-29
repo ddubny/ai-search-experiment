@@ -16,12 +16,18 @@ export default function Experiment() {
   const [task, setTask] = useState("");
   const [systemType, setSystemType] = useState(null);
 
+  // Search Engine
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
 
+  // GenAI Chat
+  const [chatHistory, setChatHistory] = useState([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [answerLength, setAnswerLength] = useState(300);
+
+  // Common
   const [scraps, setScraps] = useState([]);
   const [seconds, setSeconds] = useState(0);
-
   const [taskOpen, setTaskOpen] = useState(true);
   const [loading, setLoading] = useState(true);
 
@@ -36,10 +42,9 @@ export default function Experiment() {
     }
     setParticipantId(id);
 
-    // Load assigned task from TaskPage keys
+    // Load task assignment from TaskPage
     const storedCase = localStorage.getItem("search_case");
     const storedTask = localStorage.getItem("search_task");
-    // const taskType = localStorage.getItem("task_type"); // optional (unused)
 
     if (storedCase) setScenario(storedCase);
     if (storedTask) setTask(storedTask);
@@ -75,63 +80,100 @@ export default function Experiment() {
   }, [step]);
 
   /* =========================
-     SEARCH HANDLER
+     SEARCH ENGINE HANDLER
   ========================= */
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
 
     try {
-      if (systemType === "search") {
-        const res = await fetch(
-          `/api/SearchEngine?q=${encodeURIComponent(searchQuery)}&start=1`
-        );
-        const data = await res.json();
+      const res = await fetch(
+        `/api/SearchEngine?q=${encodeURIComponent(searchQuery)}&start=1`
+      );
+      const data = await res.json();
 
-        const results =
-          data.items?.map((item, idx) => ({
-            id: `search-${idx}`,
-            title: item.title,
-            snippet: item.snippet,
-            link: item.link,
-          })) || [];
+      const results =
+        data.items?.map((item, idx) => ({
+          id: `search-${idx}`,
+          title: item.title,
+          snippet: item.snippet,
+          link: item.link,
+        })) || [];
 
-        setSearchResults(results);
-      }
+      setSearchResults(results);
+      setSearchQuery("");
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-      if (systemType === "genai") {
-        const prompt = `
+  /* =========================
+     GENAI HANDLER (CHAT)
+  ========================= */
+  const handleGenAISubmit = async (e) => {
+    e.preventDefault();
+    if (!searchQuery.trim() || isGenerating) return;
+
+    const userInput = searchQuery;
+
+    setChatHistory((prev) => [
+      ...prev,
+      { role: "user", content: userInput },
+      { role: "assistant", content: "Generating response...", loading: true },
+    ]);
+
+    setSearchQuery("");
+    setIsGenerating(true);
+
+    try {
+      const prompt = `
 Scenario:
 ${scenario}
 
 Task:
 ${task}
 
-User query:
-${searchQuery}
-        `.trim();
+Conversation so far:
+${chatHistory
+  .filter((m) => !m.loading)
+  .map((m) => `${m.role}: ${m.content}`)
+  .join("\n")}
 
-        const res = await fetch("/api/llm", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt }),
-        });
+User:
+${userInput}
+      `.trim();
 
-        const data = await res.json();
+      const res = await fetch("/api/llm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt,
+          maxTokens: answerLength,
+        }),
+      });
 
-        setSearchResults([
-          {
-            id: "genai-1",
-            title: "AI Response",
-            snippet: data.text || "No response generated.",
-            link: "",
-          },
-        ]);
-      }
+      const data = await res.json();
 
-      setSearchQuery("");
+      setChatHistory((prev) => {
+        const updated = [...prev];
+        updated[updated.length - 1] = {
+          role: "assistant",
+          content: data.text || "No response generated.",
+        };
+        return updated;
+      });
     } catch (err) {
-      console.error("Search error:", err);
+      console.error(err);
+      setChatHistory((prev) => {
+        const updated = [...prev];
+        updated[updated.length - 1] = {
+          role: "assistant",
+          content: "An error occurred while generating the response.",
+        };
+        return updated;
+      });
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -142,13 +184,10 @@ ${searchQuery}
     e.preventDefault();
     const raw = e.dataTransfer.getData("text/plain");
     if (!raw) return;
-
     try {
       const dropped = JSON.parse(raw);
       setScraps([...scraps, { ...dropped, comment: "" }]);
-    } catch (err) {
-      console.error("Drop parse error:", err);
-    }
+    } catch {}
   };
 
   const handleNext = () => {
@@ -164,7 +203,7 @@ ${searchQuery}
   }
 
   /* =========================
-     STEP 1: START
+     STEP 1
   ========================= */
   if (step === 1) {
     return (
@@ -173,7 +212,7 @@ ${searchQuery}
 
         <div className="flex flex-1 items-center justify-center">
           <div className="max-w-2xl w-full text-center space-y-6">
-            <h1 className="text-3xl font-bold">Now you will start a search!🚀</h1>
+            <h1 className="text-3xl font-bold">Now you will start a search</h1>
 
             <div className="bg-gray-100 p-6 rounded-lg text-left space-y-2">
               <p className="font-semibold">Scenario</p>
@@ -184,7 +223,7 @@ ${searchQuery}
             </div>
 
             <p className="text-red-600 font-medium text-sm">
-              You should search for at least 4 minutes.
+              You must search for at least four minutes before proceeding.
             </p>
 
             <button
@@ -200,7 +239,7 @@ ${searchQuery}
   }
 
   /* =========================
-     STEP 2: SEARCH
+     STEP 2
   ========================= */
   return (
     <div className="flex flex-col min-h-screen">
@@ -208,11 +247,12 @@ ${searchQuery}
 
       {/* Timer */}
       <div className="fixed top-4 right-6 bg-black text-white px-4 py-2 rounded-md text-sm z-50">
-        Time: {Math.floor(seconds / 60)}:{(seconds % 60).toString().padStart(2, "0")}
+        Time: {Math.floor(seconds / 60)}:
+        {(seconds % 60).toString().padStart(2, "0")}
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Task Panel */}
+        {/* Left Panel */}
         <div
           className={`${
             taskOpen ? "w-1/5 min-w-[220px]" : "w-12"
@@ -223,7 +263,7 @@ ${searchQuery}
             className="p-2 text-sm font-medium hover:bg-gray-200"
           >
             {taskOpen ? (
-              <span className="italic text-gray-700">
+              <span className="italic text-gray-600">
                 Click the button to collapse the panel
               </span>
             ) : (
@@ -234,28 +274,29 @@ ${searchQuery}
           {taskOpen && (
             <div className="p-4 overflow-y-auto space-y-4">
               {/* Researcher Notes */}
-              <div className="bg-white border border-gray-200 rounded-lg p-3 text-xs italic text-gray-600 leading-relaxed">
+              <div className="bg-white border rounded-lg p-3 text-sm italic text-gray-600 leading-relaxed">
                 <p>
-                  Please feel free to search freely regarding the search task below. You can
-                  also use the scrapbook to save anything you want to keep for later.
+                  Please feel free to search freely regarding the search task
+                  below. You can also use the scrapbook to save anything you want
+                  to keep for later.
                 </p>
                 <p className="mt-2">
-                  You should spend at least four minutes searching and make multiple meaningful
-                  search attempts during that time.
+                  You should spend at least four minutes searching and make
+                  multiple meaningful search attempts during that time.
                 </p>
                 <p className="mt-2">
-                  If the conditions are met, a button to proceed will appear in the bottom
-                  right corner.
+                  If the conditions are met, a button to proceed will appear in
+                  the bottom right corner.
                 </p>
               </div>
 
-              {/* Scenario */}
               <div>
-                <h3 className="font-semibold mb-1 text-base">Search Scenario</h3>
+                <h3 className="font-semibold mb-1 text-base">
+                  Search Scenario
+                </h3>
                 <p className="text-base">{scenario}</p>
               </div>
 
-              {/* Task */}
               <div>
                 <h3 className="font-semibold mb-1 text-base">Search Task</h3>
                 <p className="text-base">{task}</p>
@@ -264,38 +305,84 @@ ${searchQuery}
           )}
         </div>
 
-        {/* Search Area */}
-        <div className="flex-1 flex flex-col border-r overflow-y-auto">
-          <form onSubmit={handleSearch} className="flex p-3 border-b">
-            <input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 border px-3 py-2"
-              placeholder="Type your query..."
-            />
-            <button className="bg-blue-600 text-white px-4">Search</button>
-          </form>
+        {/* Main Area */}
+        <div className="flex-1 border-r overflow-hidden">
+          {systemType === "search" ? (
+            /* Search Engine UI */
+            <div className="flex flex-col h-full">
+              <form onSubmit={handleSearch} className="flex p-3 border-b">
+                <input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="flex-1 border px-3 py-2"
+                  placeholder="Type your query..."
+                />
+                <button className="bg-blue-600 text-white px-4">
+                  Search
+                </button>
+              </form>
 
-          <div className="flex-1 p-4 bg-gray-50 overflow-y-auto">
-            {searchResults.map((r) => (
-              <div
-                key={r.id}
-                draggable
-                onDragStart={(e) =>
-                  e.dataTransfer.setData("text/plain", JSON.stringify(r))
-                }
-                className="bg-white border p-3 mb-3 rounded cursor-grab"
-              >
-                <h3 className="font-semibold">{r.title}</h3>
-                <p className="text-sm">{r.snippet}</p>
-                {r.link && (
-                  <a href={r.link} target="_blank" className="text-blue-600 text-sm">
-                    {r.link}
-                  </a>
-                )}
+              <div className="flex-1 p-4 bg-gray-50 overflow-y-auto">
+                {searchResults.map((r) => (
+                  <div
+                    key={r.id}
+                    draggable
+                    onDragStart={(e) =>
+                      e.dataTransfer.setData(
+                        "text/plain",
+                        JSON.stringify(r)
+                      )
+                    }
+                    className="bg-white border p-3 mb-3 rounded cursor-grab"
+                  >
+                    <h3 className="font-semibold">{r.title}</h3>
+                    <p className="text-sm">{r.snippet}</p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          ) : (
+            /* GenAI Chat UI */
+            <div className="flex flex-col h-full bg-gray-50">
+              <div className="flex-1 p-4 overflow-y-auto space-y-4">
+                {chatHistory.map((msg, idx) => (
+                  <div
+                    key={idx}
+                    className={`max-w-[80%] p-3 rounded-lg text-sm ${
+                      msg.role === "user"
+                        ? "bg-blue-600 text-white ml-auto"
+                        : msg.loading
+                        ? "bg-gray-200 text-gray-500 italic"
+                        : "bg-white border text-gray-800"
+                    }`}
+                  >
+                    {msg.content}
+                  </div>
+                ))}
+              </div>
+
+              <form
+                onSubmit={handleGenAISubmit}
+                className="border-t p-3 bg-white"
+              >
+                <input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={
+                    isGenerating
+                      ? "Generating response..."
+                      : "Ask anything"
+                  }
+                  disabled={isGenerating}
+                  className={`w-full border rounded-full px-4 py-2 ${
+                    isGenerating
+                      ? "bg-gray-100 cursor-not-allowed"
+                      : ""
+                  }`}
+                />
+              </form>
+            </div>
+          )}
         </div>
 
         {/* Scrapbook */}
