@@ -35,18 +35,14 @@ export default function Experiment() {
       return;
     }
     setParticipantId(id);
-    
+
+    // Load assigned task from TaskPage keys
     const storedCase = localStorage.getItem("search_case");
     const storedTask = localStorage.getItem("search_task");
-    const taskType = localStorage.getItem("task_type");
-    
-    if (storedCase) {
-      setScenario(storedCase);
-    }
-    
-    if (storedTask) {
-      setTask(storedTask);
-    }
+    // const taskType = localStorage.getItem("task_type"); // optional (unused)
+
+    if (storedCase) setScenario(storedCase);
+    if (storedTask) setTask(storedTask);
 
     const storedSystem = localStorage.getItem("systemType");
     if (storedSystem === "search" || storedSystem === "genai") {
@@ -144,8 +140,15 @@ ${searchQuery}
   ========================= */
   const handleDrop = (e) => {
     e.preventDefault();
-    const dropped = JSON.parse(e.dataTransfer.getData("text/plain"));
-    setScraps([...scraps, { ...dropped, comment: "" }]);
+    const raw = e.dataTransfer.getData("text/plain");
+    if (!raw) return;
+
+    try {
+      const dropped = JSON.parse(raw);
+      setScraps([...scraps, { ...dropped, comment: "" }]);
+    } catch (err) {
+      console.error("Drop parse error:", err);
+    }
   };
 
   const handleNext = () => {
@@ -170,9 +173,7 @@ ${searchQuery}
 
         <div className="flex flex-1 items-center justify-center">
           <div className="max-w-2xl w-full text-center space-y-6">
-            <h1 className="text-3xl font-bold">
-              Now you will start a search
-            </h1>
+            <h1 className="text-3xl font-bold">Now you will start a search</h1>
 
             <div className="bg-gray-100 p-6 rounded-lg text-left space-y-2">
               <p className="font-semibold">Scenario</p>
@@ -207,8 +208,7 @@ ${searchQuery}
 
       {/* Timer */}
       <div className="fixed top-4 right-6 bg-black text-white px-4 py-2 rounded-md text-sm z-50">
-        Time: {Math.floor(seconds / 60)}:
-        {(seconds % 60).toString().padStart(2, "0")}
+        Time: {Math.floor(seconds / 60)}:{(seconds % 60).toString().padStart(2, "0")}
       </div>
 
       <div className="flex flex-1 overflow-hidden">
@@ -228,7 +228,7 @@ ${searchQuery}
               </span>
             ) : (
               "▶"
-            )
+            )}
           </button>
 
           {taskOpen && (
@@ -236,14 +236,16 @@ ${searchQuery}
               {/* Researcher Notes */}
               <div className="bg-white border border-gray-200 rounded-lg p-3 text-xs italic text-gray-600 leading-relaxed">
                 <p>
-                  Please feel free to search freely regarding the search task below.
-                  You can also use the scrapbook to save anything you want to keep for later.
+                  Please feel free to search freely regarding the search task below. You can
+                  also use the scrapbook to save anything you want to keep for later.
                 </p>
                 <p className="mt-2">
-                  You should spend at least four minutes searching and make multiple meaningful search attempts during that time.
+                  You should spend at least four minutes searching and make multiple meaningful
+                  search attempts during that time.
                 </p>
                 <p className="mt-2">
-                  If the conditions are met, a button to proceed will appear in the bottom right corner.
+                  If the conditions are met, a button to proceed will appear in the bottom
+                  right corner.
                 </p>
               </div>
 
@@ -271,9 +273,7 @@ ${searchQuery}
               className="flex-1 border px-3 py-2"
               placeholder="Type your query..."
             />
-            <button className="bg-blue-600 text-white px-4">
-              Search
-            </button>
+            <button className="bg-blue-600 text-white px-4">Search</button>
           </form>
 
           <div className="flex-1 p-4 bg-gray-50 overflow-y-auto">
@@ -289,11 +289,7 @@ ${searchQuery}
                 <h3 className="font-semibold">{r.title}</h3>
                 <p className="text-sm">{r.snippet}</p>
                 {r.link && (
-                  <a
-                    href={r.link}
-                    target="_blank"
-                    className="text-blue-600 text-sm"
-                  >
+                  <a href={r.link} target="_blank" className="text-blue-600 text-sm">
                     {r.link}
                   </a>
                 )}
