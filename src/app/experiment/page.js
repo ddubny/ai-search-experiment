@@ -49,35 +49,51 @@ export default function Experiment() {
      SEARCH HANDLER (핵심)
   ========================= */
   const handleSearch = async (e) => {
-    e.preventDefault();
-    console.log("systemType:", systemType);
-    if (!searchQuery.trim()) return;
+  e.preventDefault();
+  console.log("🔥 handleSearch CALLED, systemType =", systemType);
 
-    try {
-      // -----------------------
-      // CASE 1: Search Engine
-      // -----------------------
-      if (systemType === "search") {
-        const res = await fetch(
-          `/api/SearchEngine?q=${encodeURIComponent(searchQuery)}&start=1`
-        );
-        const data = await res.json();
+  if (!searchQuery.trim()) return;
 
-        const items = (data.items || []).map((item, idx) => ({
-          id: `search-${idx}`,
-          title: item.title,
-          snippet: item.snippet,
-          link: item.link,
-        }));
+  try {
+    /* =========================
+       CASE 1: Search Engine
+    ========================= */
+    if (systemType === "search") {
+      const res = await fetch(
+        `/api/SearchEngine?q=${encodeURIComponent(searchQuery)}&start=1`
+      );
+      const data = await res.json();
 
-        setSearchResults(items);
-      }
+      console.log("SearchEngine raw response:", data);
 
-      // -----------------------
-      // CASE 2: Generative AI
-      // -----------------------
-      if (systemType === "genai") {
-        const prompt = `
+      const results =
+        data.items && data.items.length > 0
+          ? data.items.map((item, idx) => ({
+              id: `search-${idx}`,
+              title: item.title,
+              snippet: item.snippet,
+              link: item.link,
+            }))
+          : [
+              {
+                id: "search-empty",
+                title: "No results from search engine",
+                snippet:
+                  "The search engine returned no results for this query.",
+                link: "",
+              },
+            ];
+
+      setSearchResults(results);
+      setSearchQuery("");
+      return;
+    }
+
+    /* =========================
+       CASE 2: Generative AI
+    ========================= */
+    if (systemType === "genai") {
+      const prompt = `
 Scenario:
 ${scenario}
 
@@ -85,34 +101,53 @@ User query:
 ${searchQuery}
 
 Please provide an informative response to help the user make an informed decision.
-        `.trim();
+      `.trim();
 
-        const res = await fetch("/api/llm", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt }),
-        });
+      const res = await fetch("/api/llm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
 
-        const data = await res.json();
-        console.log("Gemini raw response:", data);
+      const data = await res.json();
+      console.log("Gemini raw response:", data);
 
+      setSearchResults([
+        {
+          id: "genai-1",
+          title: "AI Response",
+          snippet: data.text || "No response generated.",
+          link: "",
+        },
+      ]);
 
-        setSearchResults([
-          {
-            id: "genai-1",
-            title: "AI Response",
-            snippet: data.text,
-            link: "",
-          },
-        ]);
-      }
-    } catch (err) {
-      console.error("Search error:", err);
-      alert("An error occurred while searching. Please try again.");
+      setSearchQuery("");
+      return;
     }
 
-    setSearchQuery("");
-  };
+    /* =========================
+       SAFETY NET
+    ========================= */
+    setSearchResults([
+      {
+        id: "unknown-system",
+        title: "System error",
+        snippet: "Unknown system type.",
+        link: "",
+      },
+    ]);
+  } catch (err) {
+    console.error("Search error:", err);
+    setSearchResults([
+      {
+        id: "error",
+        title: "Error",
+        snippet: "An error occurred while searching.",
+        link: "",
+      },
+    ]);
+  }
+};
 
   /* =========================
      SCRAPBOOK
