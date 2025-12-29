@@ -4,18 +4,24 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ProgressBar from "../../components/ProgressBar";
 
+const REQUIRED_TIME = 240; // 4 minutes
+
 export default function Experiment() {
   const router = useRouter();
 
   const [step, setStep] = useState(1);
   const [participantId, setParticipantId] = useState(null);
+
   const [scenario, setScenario] = useState("");
+  const [task, setTask] = useState("");
   const [systemType, setSystemType] = useState(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
 
   const [scraps, setScraps] = useState([]);
+  const [seconds, setSeconds] = useState(0);
+
   const [taskOpen, setTaskOpen] = useState(true);
   const [loading, setLoading] = useState(true);
 
@@ -30,11 +36,16 @@ export default function Experiment() {
     }
     setParticipantId(id);
 
-    const storedScenario = localStorage.getItem("scenario");
+    const assigned = localStorage.getItem("assignedScenario");
+    if (assigned) {
+      const parsed = JSON.parse(assigned);
+      setScenario(parsed.scenario);
+      setTask(parsed.task);
+    }
+
     const storedSystem = localStorage.getItem("systemType");
-    if (storedScenario) setScenario(storedScenario);
     if (storedSystem === "search" || storedSystem === "genai") {
-       setSystemType(storedSystem);
+      setSystemType(storedSystem);
     } else {
       const assignedType = Math.random() < 0.5 ? "search" : "genai";
       localStorage.setItem("systemType", assignedType);
@@ -52,108 +63,76 @@ export default function Experiment() {
   }, [scraps]);
 
   /* =========================
-     SEARCH HANDLER (핵심)
+     TIMER (STEP 2)
+  ========================= */
+  useEffect(() => {
+    if (step !== 2) return;
+    const timer = setInterval(() => {
+      setSeconds((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [step]);
+
+  /* =========================
+     SEARCH HANDLER
   ========================= */
   const handleSearch = async (e) => {
-  e.preventDefault();
-  console.log("🔥 handleSearch CALLED, systemType =", systemType);
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
 
-  if (!searchQuery.trim()) return;
+    try {
+      if (systemType === "search") {
+        const res = await fetch(
+          `/api/SearchEngine?q=${encodeURIComponent(searchQuery)}&start=1`
+        );
+        const data = await res.json();
 
-  try {
-    /* =========================
-       CASE 1: Search Engine
-    ========================= */
-    if (systemType === "search") {
-      const res = await fetch(
-        `/api/SearchEngine?q=${encodeURIComponent(searchQuery)}&start=1`
-      );
-      const data = await res.json();
+        const results =
+          data.items?.map((item, idx) => ({
+            id: `search-${idx}`,
+            title: item.title,
+            snippet: item.snippet,
+            link: item.link,
+          })) || [];
 
-      console.log("SearchEngine raw response:", data);
+        setSearchResults(results);
+      }
 
-      const results =
-        data.items && data.items.length > 0
-          ? data.items.map((item, idx) => ({
-              id: `search-${idx}`,
-              title: item.title,
-              snippet: item.snippet,
-              link: item.link,
-            }))
-          : [
-              {
-                id: "search-empty",
-                title: "No results from search engine",
-                snippet:
-                  "The search engine returned no results for this query.",
-                link: "",
-              },
-            ];
-
-      setSearchResults(results);
-      setSearchQuery("");
-      return;
-    }
-
-    /* =========================
-       CASE 2: Generative AI
-    ========================= */
-    if (systemType === "genai") {
-      const prompt = `
+      if (systemType === "genai") {
+        const prompt = `
 Scenario:
 ${scenario}
 
+Task:
+${task}
+
 User query:
 ${searchQuery}
+        `.trim();
 
-Please provide an informative response to help the user make an informed decision.
-      `.trim();
+        const res = await fetch("/api/llm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt }),
+        });
 
-      const res = await fetch("/api/llm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
-      });
+        const data = await res.json();
 
-      const data = await res.json();
-      console.log("Gemini raw response:", data);
-
-      setSearchResults([
-        {
-          id: "genai-1",
-          title: "AI Response",
-          snippet: data.text || "No response generated.",
-          link: "",
-        },
-      ]);
+        setSearchResults([
+          {
+            id: "genai-1",
+            title: "AI Response",
+            snippet: data.text || "No response generated.",
+            link: "",
+          },
+        ]);
+      }
 
       setSearchQuery("");
-      return;
+    } catch (err) {
+      console.error("Search error:", err);
     }
-
-    /* =========================
-       SAFETY NET
-    ========================= */
-    setSearchResults([
-      {
-        id: "unknown-system",
-        title: "System error",
-        snippet: "Unknown system type.",
-        link: "",
-      },
-    ]);
-  } catch (err) {
-    console.error("Search error:", err);
-    setSearchResults([
-      {
-        id: "error",
-        title: "Error",
-        snippet: "An error occurred while searching.",
-        link: "",
-      },
-    ]);
-  }
-};
+  };
 
   /* =========================
      SCRAPBOOK
@@ -177,22 +156,30 @@ Please provide an informative response to help the user make an informed decisio
   }
 
   /* =========================
-     STEP 1
+     STEP 1: START
   ========================= */
   if (step === 1) {
     return (
       <div className="flex flex-col min-h-screen">
         <ProgressBar progress={25} />
+
         <div className="flex flex-1 items-center justify-center">
-          <div className="max-w-3xl text-center">
-            <h1 className="text-3xl font-bold mb-6">
+          <div className="max-w-2xl w-full text-center space-y-6">
+            <h1 className="text-3xl font-bold">
               Now you will start a search
             </h1>
 
-            <div className="bg-gray-100 p-6 rounded-lg mb-6 text-left">
-              <strong>Scenario:</strong>
-              <p>{scenario}</p>
+            <div className="bg-gray-100 p-6 rounded-lg text-left space-y-2">
+              <p className="font-semibold">Scenario</p>
+              <p className="text-sm">{scenario}</p>
+
+              <p className="font-semibold pt-2">Search Task</p>
+              <p className="text-sm">{task}</p>
             </div>
+
+            <p className="text-red-600 font-medium text-sm">
+              You must search for at least 4 minutes before proceeding.
+            </p>
 
             <button
               onClick={() => setStep(2)}
@@ -207,108 +194,117 @@ Please provide an informative response to help the user make an informed decisio
   }
 
   /* =========================
-     STEP 2
+     STEP 2: SEARCH
   ========================= */
   return (
     <div className="flex flex-col min-h-screen">
       <ProgressBar progress={40} />
 
+      {/* Timer */}
+      <div className="fixed top-4 right-6 bg-black text-white px-4 py-2 rounded-md text-sm z-50">
+        Time: {Math.floor(seconds / 60)}:
+        {(seconds % 60).toString().padStart(2, "0")}
+      </div>
+
       <div className="flex flex-1 overflow-hidden">
-        {/* Task panel */}
+        {/* Left Task Panel */}
         <div
           className={`${
-            taskOpen ? "w-72" : "w-12"
-          } bg-gray-100 border-r transition-all`}
+            taskOpen ? "w-1/4 min-w-[280px]" : "w-12"
+          } bg-gray-100 border-r transition-all duration-300 flex flex-col`}
         >
           <button
             onClick={() => setTaskOpen(!taskOpen)}
-            className="p-2 w-full text-left"
+            className="p-2 text-sm font-medium hover:bg-gray-200"
           >
             {taskOpen ? "◀ Search Task" : "▶"}
           </button>
-          {taskOpen && <p className="p-3 text-sm">{scenario}</p>}
+
+          {taskOpen && (
+            <div className="p-4 overflow-y-auto">
+              <h3 className="font-semibold mb-2">Search Scenario</h3>
+              <p className="text-sm mb-4">{scenario}</p>
+
+              <h3 className="font-semibold mb-2">Search Task</h3>
+              <p className="text-sm">{task}</p>
+            </div>
+          )}
         </div>
 
-        {/* Main */}
-        <div className="flex-1 p-6 grid grid-cols-1 md:grid-cols-[60%_40%] gap-6">
-          {/* Search */}
-          <div className="border rounded-lg flex flex-col">
-            <form onSubmit={handleSearch} className="flex p-3 border-b">
-              <input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 border px-3 py-2"
-                placeholder="Type your query..."
-              />
-              <button className="bg-blue-600 text-white px-4">
-                Search
-              </button>
-            </form>
+        {/* Search Area */}
+        <div className="flex-1 flex flex-col border-r overflow-y-auto">
+          <form onSubmit={handleSearch} className="flex p-3 border-b">
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 border px-3 py-2"
+              placeholder="Type your query..."
+            />
+            <button className="bg-blue-600 text-white px-4">
+              Search
+            </button>
+          </form>
 
-            <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
-              {searchResults.length === 0 ? (
-                <p className="italic text-gray-500">No results yet.</p>
-              ) : (
-                searchResults.map((r) => (
-                  <div
-                    key={r.id}
-                    draggable
-                    onDragStart={(e) =>
-                      e.dataTransfer.setData("text/plain", JSON.stringify(r))
-                    }
-                    className="bg-white border p-3 mb-3 rounded cursor-grab"
+          <div className="flex-1 p-4 bg-gray-50 overflow-y-auto">
+            {searchResults.map((r) => (
+              <div
+                key={r.id}
+                draggable
+                onDragStart={(e) =>
+                  e.dataTransfer.setData("text/plain", JSON.stringify(r))
+                }
+                className="bg-white border p-3 mb-3 rounded cursor-grab"
+              >
+                <h3 className="font-semibold">{r.title}</h3>
+                <p className="text-sm">{r.snippet}</p>
+                {r.link && (
+                  <a
+                    href={r.link}
+                    target="_blank"
+                    className="text-blue-600 text-sm"
                   >
-                    <h3 className="font-semibold">{r.title}</h3>
-                    <p className="text-sm">{r.snippet}</p>
-                    {r.link && (
-                      <a
-                        href={r.link}
-                        target="_blank"
-                        className="text-blue-600 text-sm"
-                      >
-                        {r.link}
-                      </a>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Scrapbook */}
-          <div
-            className="border-2 border-dashed rounded-lg p-4 bg-gray-50 overflow-y-auto"
-            onDrop={handleDrop}
-            onDragOver={(e) => e.preventDefault()}
-          >
-            <h2 className="font-semibold mb-3">Scrapbook</h2>
-            {scraps.map((item, i) => (
-              <div key={i} className="bg-white p-3 mb-3 rounded border">
-                <p>{item.snippet}</p>
-                <textarea
-                  className="w-full border mt-2 p-2 text-sm"
-                  placeholder="Your notes..."
-                  value={item.comment}
-                  onChange={(e) => {
-                    const updated = [...scraps];
-                    updated[i].comment = e.target.value;
-                    setScraps(updated);
-                  }}
-                />
+                    {r.link}
+                  </a>
+                )}
               </div>
             ))}
           </div>
         </div>
-      </div>
 
-      <button
-        onClick={handleNext}
-        className="absolute top-4 right-6 bg-green-600 text-white px-6 py-3 rounded-lg"
-      >
-        Next →
-      </button>
+        {/* Scrapbook */}
+        <div
+          className="w-[18%] min-w-[220px] bg-gray-50 p-4 overflow-y-auto border-l"
+          onDrop={handleDrop}
+          onDragOver={(e) => e.preventDefault()}
+        >
+          <h2 className="font-semibold mb-3">Scrapbook</h2>
+
+          {scraps.map((item, i) => (
+            <div key={i} className="bg-white p-3 mb-3 rounded border">
+              <p className="text-sm">{item.snippet}</p>
+              <textarea
+                className="w-full border mt-2 p-2 text-sm"
+                placeholder="Your notes..."
+                value={item.comment}
+                onChange={(e) => {
+                  const updated = [...scraps];
+                  updated[i].comment = e.target.value;
+                  setScraps(updated);
+                }}
+              />
+            </div>
+          ))}
+
+          {seconds >= REQUIRED_TIME && (
+            <button
+              onClick={handleNext}
+              className="w-full mt-4 bg-blue-600 text-white py-3 rounded-lg"
+            >
+              Proceed to Next Step →
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
-
-
