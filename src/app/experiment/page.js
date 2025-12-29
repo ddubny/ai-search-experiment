@@ -24,7 +24,6 @@ export default function Experiment() {
   // GenAI Chat
   const [chatHistory, setChatHistory] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [answerLength, setAnswerLength] = useState(80);
 
   // Common
   const [scraps, setScraps] = useState([]);
@@ -128,7 +127,7 @@ export default function Experiment() {
 
     try {
       const prompt = `
-      Please provide a detailed and structured response concisely.
+      Please answer briefly in plain text.
       Use clear headings, bullet points, and formatting to organize the information.
 
       Scenario:
@@ -136,12 +135,6 @@ export default function Experiment() {
       
       Task:
       ${task}
-      
-      Conversation so far:
-      ${chatHistory
-        .filter((m) => !m.loading)
-        .map((m) => `${m.role}: ${m.content}`)
-        .join("\n")}
       
       User:
       ${userInput}
@@ -152,7 +145,7 @@ export default function Experiment() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt,
-          maxTokens: answerLength,
+          maxTokens: 80,
         }),
       });
 
@@ -404,22 +397,6 @@ export default function Experiment() {
                       : ""
                   }`}
                 />
-                {/* Answer Length Control (GenAI only) */}
-                <div className="px-4 pb-2 pt-2 text-xs text-gray-600 flex items-center gap-3 border-t bg-white">
-                  <span className="whitespace-nowrap">Answer length</span>
-                  <input
-                    type="range"
-                    min={40}
-                    max={100}
-                    step={20}
-                    value={answerLength}
-                    onChange={(e) => setAnswerLength(Number(e.target.value))}
-                    disabled={isGenerating}
-                    className="flex-1"
-                  />
-                  <span className="w-10 text-right">{answerLength}</span>
-                </div>
-
 
               </form>
             </div>
