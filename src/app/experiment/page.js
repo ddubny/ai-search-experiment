@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ProgressBar from "../../components/ProgressBar";
+import ReactMarkdown from "react-markdown";
 
 const REQUIRED_TIME = 240; // 4 minutes
 
@@ -359,7 +360,9 @@ export default function Experiment() {
                         : "bg-white border text-gray-800"
                     }`}
                   >
-                    {msg.content}
+                    <ReactMarkdown>
+                      {msg.content}
+                    </ReactMarkdown>
                   </div>
                 ))}
               </div>
