@@ -23,7 +23,7 @@ export default function Experiment() {
   // GenAI Chat
   const [chatHistory, setChatHistory] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [answerLength, setAnswerLength] = useState(150);
+  const [answerLength, setAnswerLength] = useState(100);
 
   // Common
   const [scraps, setScraps] = useState([]);
@@ -385,9 +385,9 @@ ${userInput}
                   <span className="whitespace-nowrap">Answer length</span>
                   <input
                     type="range"
-                    min={150}
-                    max={800}
-                    step={50}
+                    min={50}
+                    max={150}
+                    step={25}
                     value={answerLength}
                     onChange={(e) => setAnswerLength(Number(e.target.value))}
                     disabled={isGenerating}
