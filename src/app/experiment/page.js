@@ -295,10 +295,10 @@ ${userInput}
         Time: {Math.floor(seconds / 60)}:{(seconds % 60).toString().padStart(2, "0")}
       </div>
 
-      <div className="relative flex flex-1 overflow-hidden">
+      <div className="relative flex flex-1 overflow-hidden pt-[var(--progressbar-h)]">
         {/* Left Panel */}
         <div
-          className={`fixed top-[56px] left-0 h-[calc(100vh-56px)] z-40
+          className={`fixed top-0 h-screen z-40
             ${taskOpen ? "w-1/5 min-w-[220px]" : "w-12"}
             bg-gray-100 border-r transition-all duration-300 flex flex-col`}
         >
@@ -474,7 +474,7 @@ ${userInput}
 
         {/* Scrapbook */}
         <div
-          className="fixed top-[56px] right-0 h-[calc(100vh-56px)]
+          className="fixed top-0 h-screen
           w-[18%] min-w-[220px] bg-gray-50 border-l flex flex-col z-40"
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
