@@ -309,7 +309,7 @@ ${userInput}
             className="p-2 text-sm font-medium hover:bg-gray-200"
           >
             {taskOpen ? (
-              <span className="italic text-gray-600">f
+              <span className="italic text-gray-600">
                 Click the button to collapse the panel
               </span>
             ) : (
