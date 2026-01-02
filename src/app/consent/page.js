@@ -20,7 +20,7 @@ export default function ConsentPage() {
     }
   }, []);
 
-  const canContinue = checked;
+  const isContinueDisabled = !checked || isSubmitting;
 
   const handleContinue = async () => {
     if (!participantId || isSubmitting) return;
@@ -48,7 +48,7 @@ export default function ConsentPage() {
   };
 
   const handleDecline = async () => {
-    if (!participantId) return;
+    if (!participantId || isSubmitting) return;
 
     try {
       await fetch("/api/airtable/consent", {
@@ -103,9 +103,7 @@ export default function ConsentPage() {
 
         {/* ===== Informed Consent Title ===== */}
         <section className="mb-8">
-          <h2 className="text-3xl font-bold tracking-tight">
-            Informed Consent
-          </h2>
+          <h2 className="text-3xl font-bold tracking-tight">Informed Consent</h2>
         </section>
 
         {/* ===== Consent Content ===== */}
@@ -179,8 +177,7 @@ export default function ConsentPage() {
               research team at{" "}
               <span className="font-mono">example@university.edu</span>. For
               questions about your rights as a participant, you may contact the
-              IRB at{" "}
-              <span className="font-mono">irb@university.edu</span>.
+              IRB at <span className="font-mono">irb@university.edu</span>.
             </p>
           </div>
         </section>
@@ -196,7 +193,11 @@ export default function ConsentPage() {
             checked={checked}
             onChange={(e) => setChecked(e.target.checked)}
           />
-          <label htmlFor="agree" className="text-sm leading-6">
+          <label
+            htmlFor="agree"
+            className="text-sm leading-6 cursor-pointer select-none"
+            onClick={() => setChecked((v) => !v)} // label 클릭도 확실히 토글
+          >
             I have read and understood the information above. I am at least 18
             years old and voluntarily agree to participate in this study.
           </label>
@@ -207,7 +208,12 @@ export default function ConsentPage() {
           <button
             type="button"
             onClick={handleDecline}
-            className="rounded-xl border border-gray-300 px-4 py-2 text-sm"
+            disabled={isSubmitting}
+            className={`rounded-xl border px-4 py-2 text-sm ${
+              isSubmitting
+                ? "border-gray-200 text-gray-400 cursor-not-allowed"
+                : "border-gray-300 hover:bg-gray-50"
+            }`}
           >
             Decline
           </button>
@@ -215,11 +221,11 @@ export default function ConsentPage() {
           <button
             type="button"
             onClick={handleContinue}
-            disabled={!canContinue || isSubmitting}
+            disabled={isContinueDisabled}
             className={`rounded-xl px-4 py-2 text-sm font-semibold text-white ${
-              canContinue && !isSubmitting
-                ? "bg-gray-900 hover:bg-black"
-                : "bg-gray-400 cursor-not-allowed"
+              isContinueDisabled
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-gray-900 hover:bg-black"
             }`}
           >
             {isSubmitting ? "Saving consent…" : "Continue"}
@@ -230,6 +236,7 @@ export default function ConsentPage() {
           By selecting “Continue,” you indicate your electronic consent and
           agree to participate in this study.
         </p>
+
       </div>
     </main>
   );
