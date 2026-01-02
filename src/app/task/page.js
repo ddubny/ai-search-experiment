@@ -11,6 +11,13 @@ export default function TaskPage() {
   const [loading, setLoading] = useState(true);
 
   /* =========================
+     Factorial design settings
+     ========================= */
+  const TASKS = ["Nanotechnology", "GMO", "Cultivated Meat"];
+  const SYSTEMS = ["WebSearch", "ConvSearch"];
+  const MAX_PER_CELL = 9; // ~50 participants → 6 cells
+
+  /* =========================
      Highlight helper
      (Search Task ONLY)
      ========================= */
@@ -36,6 +43,53 @@ export default function TaskPage() {
   };
 
   /* =========================
+     Cell count helpers
+     ========================= */
+  function getCellCounts() {
+    const counts =
+      JSON.parse(localStorage.getItem("factorial_counts")) || {};
+
+    TASKS.forEach((t) => {
+      SYSTEMS.forEach((s) => {
+        const key = `${t}__${s}`;
+        if (counts[key] === undefined) counts[key] = 0;
+      });
+    });
+
+    return counts;
+  }
+
+  function incrementCell(task, system) {
+    const counts = getCellCounts();
+    const key = `${task}__${system}`;
+    counts[key] += 1;
+    localStorage.setItem("factorial_counts", JSON.stringify(counts));
+  }
+
+  function pickBalancedCell() {
+    const counts = getCellCounts();
+    const available = [];
+
+    TASKS.forEach((task) => {
+      SYSTEMS.forEach((system) => {
+        const key = `${task}__${system}`;
+        if (counts[key] < MAX_PER_CELL) {
+          available.push({ task, system });
+        }
+      });
+    });
+
+    const pool =
+      available.length > 0
+        ? available
+        : TASKS.flatMap((t) =>
+            SYSTEMS.map((s) => ({ task: t, system: s }))
+          );
+
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  /* =========================
      1. Load participant_id
      ========================= */
   useEffect(() => {
@@ -48,7 +102,7 @@ export default function TaskPage() {
   }, []);
 
   /* =========================
-     2. Assign scenario (ONCE)
+     2. Assign task × system (ONCE)
      ========================= */
   useEffect(() => {
     if (!participantId) return;
@@ -77,14 +131,14 @@ export default function TaskPage() {
       },
     ];
 
-    /* ===== 이미 할당된 경우 (새로고침 방지) ===== */
-    const savedCondition = localStorage.getItem("assigned_task_type");
+    /* ===== Restore existing assignment ===== */
+    const savedTask = localStorage.getItem("task_type");
+    const savedSystem = localStorage.getItem("system_type");
 
-    if (savedCondition) {
+    if (savedTask && savedSystem) {
       const existingScenario = scenarios.find(
-        (s) => s.condition === savedCondition
+        (s) => s.condition === savedTask
       );
-
       if (existingScenario) {
         setAssignedScenario(existingScenario);
         setLoading(false);
@@ -92,17 +146,18 @@ export default function TaskPage() {
       }
     }
 
-    /* ===== 최초 방문: 랜덤 할당 ===== */
-    const randomScenario =
-      scenarios[Math.floor(Math.random() * scenarios.length)];
+    /* ===== Balanced factorial assignment ===== */
+    const { task, system } = pickBalancedCell();
+    const scenario = scenarios.find((s) => s.condition === task);
 
-    setAssignedScenario(randomScenario);
+    incrementCell(task, system);
 
-    // localStorage에 고정 저장 (핵심)
-    localStorage.setItem("task_type", randomScenario.condition);
-    localStorage.setItem("search_case", randomScenario.searchCase);
-    localStorage.setItem("search_task", randomScenario.searchTask);
+    localStorage.setItem("task_type", task);
+    localStorage.setItem("system_type", system);
+    localStorage.setItem("search_case", scenario.searchCase);
+    localStorage.setItem("search_task", scenario.searchTask);
 
+    setAssignedScenario(scenario);
     setLoading(false);
   }, [participantId]);
 
@@ -136,10 +191,11 @@ export default function TaskPage() {
             You will next respond to a pre-task survey, followed by the main
             search task.
             <br />
-            You will be able to review your search task at any time during the session.
+            You will be able to review your search task at any time during the
+            session.
           </p>
 
-          {/* Search Case (NO highlight) */}
+          {/* Search Case */}
           <div className="bg-gray-50 border border-gray-200 rounded-2xl shadow-sm p-8 mb-6 text-left">
             <h2 className="font-semibold mb-2">Search Case</h2>
             <p className="text-gray-800 leading-relaxed">
@@ -147,7 +203,7 @@ export default function TaskPage() {
             </p>
           </div>
 
-          {/* Search Task (WITH highlight) */}
+          {/* Search Task */}
           <div className="bg-gray-50 border border-gray-200 rounded-2xl shadow-sm p-8 mb-10 text-left">
             <h2 className="font-semibold mb-2">Search Task</h2>
             <p
