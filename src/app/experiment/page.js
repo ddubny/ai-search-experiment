@@ -55,14 +55,13 @@ export default function Experiment() {
     if (storedTask) setTask(storedTask);
 
     // Assign system type (persist)
-    const storedSystem = localStorage.getItem("systemType");
-    if (storedSystem === "search" || storedSystem === "genai") {
-      setSystemType(storedSystem);
-    } else {
-      const assignedType = Math.random() < 0.5 ? "search" : "genai";
-      localStorage.setItem("systemType", assignedType);
-      setSystemType(assignedType);
+    const storedSystem = localStorage.getItem("system_type");
+    if (!storedSystem) {
+      // assignment missing → safety fallback
+      window.location.href = "/task";
+      return;
     }
+      setSystemType(storedSystem); // "WebSearch" | "ConvSearch"
 
     // Load scrapbook
     const savedScraps = localStorage.getItem("scrapbook");
@@ -379,7 +378,7 @@ ${userInput}
             mr-[18%]
           `}
         >
-          {systemType === "search" ? (
+          {systemType === "WebSearch" ? (
             /* Search Engine UI */
             <div className="flex flex-col h-full">
               <form onSubmit={handleSearch} className="flex p-3 border-b">
