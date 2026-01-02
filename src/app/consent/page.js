@@ -7,7 +7,6 @@ import ProgressBar from "../../components/ProgressBar";
 export default function ConsentPage() {
   const router = useRouter();
   const [checked, setChecked] = useState(false);
-  const [date, setDate] = useState("");
   const [participantId, setParticipantId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -21,7 +20,7 @@ export default function ConsentPage() {
     }
   }, []);
 
-  const canContinue = checked && date.trim() !== "";
+  const canContinue = checked;
 
   const handleContinue = async () => {
     if (!participantId || isSubmitting) return;
@@ -34,7 +33,6 @@ export default function ConsentPage() {
         body: JSON.stringify({
           participant_id: participantId,
           consent: "yes",
-          date,
         }),
       });
 
@@ -59,7 +57,6 @@ export default function ConsentPage() {
         body: JSON.stringify({
           participant_id: participantId,
           consent: "no",
-          date,
         }),
       });
 
@@ -100,9 +97,6 @@ export default function ConsentPage() {
             <p>
               Please read the following information carefully before deciding
               whether to participate.
-              <br />
-              If you are interested in participating, please fill out the form
-              below.
             </p>
           </div>
         </header>
