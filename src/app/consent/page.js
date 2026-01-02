@@ -184,24 +184,23 @@ export default function ConsentPage() {
 
         <hr className="my-10 border-gray-200" />
 
-        {/* ===== Consent Checkbox ===== */}
-        <div className="flex items-start gap-3">
-          <input
-            id="agree"
-            type="checkbox"
-            className="mt-1 h-5 w-5 rounded border-gray-300"
-            checked={checked}
-            onChange={(e) => setChecked(e.target.checked)}
-          />
+          {/* ===== Consent Checkbox ===== */}
           <label
             htmlFor="agree"
-            className="text-sm leading-6 cursor-pointer select-none"
-            onClick={() => setChecked((v) => !v)} // label 클릭도 확실히 토글
+            className="mt-6 flex items-start gap-3 rounded-xl border border-gray-200 p-4 cursor-pointer select-none hover:bg-gray-50"
           >
-            I have read and understood the information above. I am at least 18
-            years old and voluntarily agree to participate in this study.
+            <input
+              id="agree"
+              type="checkbox"
+              className="mt-1 h-5 w-5 rounded border-gray-300"
+              checked={checked}
+              onChange={(e) => setChecked(e.target.checked)}
+            />
+            <span className="text-sm leading-6">
+              I have read and understood the information above. I am at least 18 years old
+              and voluntarily agree to participate in this study.
+            </span>
           </label>
-        </div>
 
         {/* ===== Action Buttons ===== */}
         <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
