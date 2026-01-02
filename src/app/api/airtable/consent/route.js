@@ -1,54 +1,32 @@
-import { NextResponse } from "next/server";
+import Airtable from "airtable";
+
+const base = new Airtable({
+  apiKey: process.env.AIRTABLE_API_KEY,
+}).base(process.env.AIRTABLE_BASE_ID);
 
 export async function POST(req) {
   try {
-    const body = await req.json();
-
-    const { participant_id, consent, name, date } = body;
+    const { participant_id, consent } = await req.json();
 
     if (!participant_id) {
-      throw new Error("participant_id is required");
-    }
-    if (!consent) {
-      throw new Error("consent is required");
-    }
-    if (!date) {
-      throw new Error("date is required");
+      return Response.json(
+        { success: false, error: "Missing participant_id" },
+        { status: 400 }
+      );
     }
 
-    const fields = {
-      participant_id,
-      consent, // "yes" | "no" → Airtable Single select
-      name: name || "",
-      date,    // YYYY-MM-DD (page.js에서 온 값 그대로)
-    };
+    await base("consent").create({
+      fields: {
+        "Participant ID": participant_id,
+        "Consent": consent === "yes",
+      },
+    });
 
-    const res = await fetch(
-      `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/consent`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.AIRTABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          records: [{ fields }],
-        }),
-      }
-    );
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      console.error("Airtable consent error:", data);
-      throw new Error("Failed to save consent");
-    }
-
-    return NextResponse.json({ success: true });
+    return Response.json({ success: true });
   } catch (error) {
-    console.error("Consent API error:", error);
-    return NextResponse.json(
-      { success: false, error: error.message },
+    console.error("Airtable save error:", error);
+    return Response.json(
+      { success: false, error: "Airtable error" },
       { status: 500 }
     );
   }
