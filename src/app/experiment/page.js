@@ -372,8 +372,10 @@ ${userInput}
 
         {/* Main Area */}
         <div 
-           className={`flex-1 border-r overflow-hidden
-            ml-[20%] mr-[18%]`}
+           className={`flex-1 border-r overflow-hidden transition-all duration-300
+            ${taskOpen ? "ml-[20%]" : "ml-12"}
+            mr-[18%]
+          `}
         >
           {systemType === "search" ? (
             /* Search Engine UI */
