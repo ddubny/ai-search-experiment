@@ -7,7 +7,6 @@ import ProgressBar from "../../components/ProgressBar";
 export default function ConsentPage() {
   const router = useRouter();
   const [checked, setChecked] = useState(false);
-  const [name, setName] = useState("");
   const [date, setDate] = useState("");
   const [participantId, setParticipantId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -22,7 +21,7 @@ export default function ConsentPage() {
     }
   }, []);
 
-  const canContinue = checked && name.trim() !== "" && date.trim() !== "";
+  const canContinue = checked && date.trim() !== "";
 
   const handleContinue = async () => {
     if (!participantId || isSubmitting) return;
@@ -35,7 +34,6 @@ export default function ConsentPage() {
         body: JSON.stringify({
           participant_id: participantId,
           consent: "yes",
-          name,
           date,
         }),
       });
@@ -61,7 +59,6 @@ export default function ConsentPage() {
         body: JSON.stringify({
           participant_id: participantId,
           consent: "no",
-          name,
           date,
         }),
       });
@@ -91,19 +88,21 @@ export default function ConsentPage() {
         {/* ===== Welcome Section ===== */}
         <header className="mb-12 space-y-4">
           <h1 className="text-4xl font-bold tracking-tight">
-            Welcome to the Study
+            Welcome to the Study!
           </h1>
 
           <div className="text-base text-gray-700 space-y-2 leading-relaxed">
-            <p>Hello, my name is Subin Seo.</p>
             <p>
-              I am a master’s student at the University of Maryland, College Park.
-              I am conducting a research project about how people search online.
+              Hello, my name is Subin Seo. I am a master’s student at the
+              University of Maryland, College Park. I am conducting a research
+              project about how people search online.
             </p>
             <p>
               Please read the following information carefully before deciding
-              whether to participate. If you are interested in participating,
-              please fill out the form below.
+              whether to participate.
+              <br />
+              If you are interested in participating, please fill out the form
+              below.
             </p>
           </div>
         </header>
@@ -209,38 +208,23 @@ export default function ConsentPage() {
           </label>
         </div>
 
-        {/* ===== Electronic Signature ===== */}
+        {/* ===== Electronic Consent (Date Only) ===== */}
         <div className="mt-6 space-y-4 border border-gray-200 rounded-xl p-4">
-          <h3 className="font-semibold text-lg">Electronic Signature</h3>
+          <h3 className="font-semibold text-lg">Electronic Consent</h3>
           <p className="text-sm text-gray-600">
-            Please type your full name as your electronic signature and provide
-            today’s date.
+            Please provide today’s date to indicate your electronic consent.
           </p>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:gap-6">
-            <div className="flex flex-col flex-1">
-              <label className="text-sm font-medium text-gray-700">
-                Full Name
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
-              />
-            </div>
-
-            <div className="flex flex-col flex-1">
-              <label className="text-sm font-medium text-gray-700">
-                Date
-              </label>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
-              />
-            </div>
+          <div className="flex flex-col flex-1 max-w-xs">
+            <label className="text-sm font-medium text-gray-700">
+              Date
+            </label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
+            />
           </div>
         </div>
 
@@ -269,7 +253,7 @@ export default function ConsentPage() {
         </div>
 
         <p className="mt-4 text-xs text-gray-500">
-          By selecting “Continue,” you provide your electronic signature and
+          By selecting “Continue,” you indicate your electronic consent and
           agree to participate in this study.
         </p>
       </div>
