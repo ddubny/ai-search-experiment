@@ -295,12 +295,12 @@ ${userInput}
         Time: {Math.floor(seconds / 60)}:{(seconds % 60).toString().padStart(2, "0")}
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="relative flex flex-1 overflow-hidden">
         {/* Left Panel */}
         <div
-          className={`${
-            taskOpen ? "w-1/5 min-w-[220px]" : "w-12"
-          } bg-gray-100 border-r transition-all duration-300 flex flex-col`}
+          className={`fixed top-[56px] left-0 h-[calc(100vh-56px)] z-40
+            ${taskOpen ? "w-1/5 min-w-[220px]" : "w-12"}
+            bg-gray-100 border-r transition-all duration-300 flex flex-col`}
         >
           <button
             onClick={() => setTaskOpen(!taskOpen)}
@@ -371,7 +371,10 @@ ${userInput}
         )}
 
         {/* Main Area */}
-        <div className="flex-1 border-r overflow-hidden">
+        <div 
+           className={`flex-1 border-r overflow-hidden
+            ml-[220px] mr-[220px]`}
+        >
           {systemType === "search" ? (
             /* Search Engine UI */
             <div className="flex flex-col h-full">
@@ -469,7 +472,8 @@ ${userInput}
 
         {/* Scrapbook */}
         <div
-          className="w-[18%] min-w-[220px] bg-gray-50 border-l flex flex-col"
+          className="fixed top-[56px] right-0 h-[calc(100vh-56px)]
+          w-[18%] min-w-[220px] bg-gray-50 border-l flex flex-col z-40"
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
         >
