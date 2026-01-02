@@ -288,14 +288,16 @@ ${userInput}
   ========================= */
   return (
     <div className="flex flex-col min-h-screen">
-      <ProgressBar progress={40} />
+      <div className="sticky top-0 z-50">
+        <ProgressBar progress={40} />
+      </div>
 
       {/* Timer */}
       <div className="fixed top-4 right-6 bg-black text-white px-4 py-2 rounded-md text-sm z-50">
         Time: {Math.floor(seconds / 60)}:{(seconds % 60).toString().padStart(2, "0")}
       </div>
 
-      <div className="relative flex flex-1 overflow-hidden pt-[var(--progressbar-h)]">
+      <div className="relative flex flex-1 overflow-hidden">
         {/* Left Panel */}
         <div
           className={`fixed top-0 h-screen z-40
@@ -307,7 +309,7 @@ ${userInput}
             className="p-2 text-sm font-medium hover:bg-gray-200"
           >
             {taskOpen ? (
-              <span className="italic text-gray-600">
+              <span className="italic text-gray-600">f
                 Click the button to collapse the panel
               </span>
             ) : (
@@ -474,7 +476,7 @@ ${userInput}
 
         {/* Scrapbook */}
         <div
-          className="fixed top-0 h-screen
+          className="fixed top-0 right-0 h-screen
           w-[18%] min-w-[220px] bg-gray-50 border-l flex flex-col z-40"
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
