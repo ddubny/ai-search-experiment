@@ -9,8 +9,9 @@ const GUIDE_SEEN_KEY = "presurvey_guide_seen";
 
 export default function PreSurvey() {
   const router = useRouter();
+
   const [showWarningModal, setShowWarningModal] = useState(false);
-  const [incompleteWarningCount, setIncompleteWarningCount] = useState(0);
+  const [highlightQuestion, setHighlightQuestion] = useState(null);
 
   const [participantId, setParticipantId] = useState(null);
   const [taskType, setTaskType] = useState("");
@@ -27,11 +28,11 @@ export default function PreSurvey() {
   const [showGuide, setShowGuide] = useState(true);
 
   /* -------------------------------
-     Arrow refs
+     Refs
   -------------------------------- */
   const taskPanelAnchorRef = useRef(null);
   const guideCardRef = useRef(null);
-  const [arrowPath, setArrowPath] = useState("");
+  const questionRefs = useRef({});
 
   /* -------------------------------
      Load participant + task
@@ -57,7 +58,6 @@ export default function PreSurvey() {
     setSearchCase(scase);
     setSearchTask(stask);
 
-    // restore saved responses
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
@@ -113,7 +113,7 @@ export default function PreSurvey() {
   ];
 
   /* -------------------------------
-     Handle response (persist)
+     Handle response
   -------------------------------- */
   const handleChange = (question, value) => {
     setResponses((prev) => {
@@ -132,17 +132,10 @@ export default function PreSurvey() {
     const allQuestions = [...familiarityQuestions, ...selfEfficacyQuestions];
     const unanswered = allQuestions.filter((q) => responses[q] === undefined);
 
-    if (unanswered.length > 0 && incompleteWarningCount < 2) {
+    if (unanswered.length > 0) {
       setShowWarningModal(true);
-      setIncompleteWarningCount((c) => c + 1);
       return;
     }
-
-    const familiarityResponses = {};
-    familiarityQuestions.forEach((q) => (familiarityResponses[q] = responses[q]));
-
-    const selfEfficacyResponses = {};
-    selfEfficacyQuestions.forEach((q) => (selfEfficacyResponses[q] = responses[q]));
 
     try {
       setLoading(true);
@@ -153,8 +146,12 @@ export default function PreSurvey() {
         body: JSON.stringify({
           participant_id: participantId,
           Task_type: taskType,
-          familiarity_responses: familiarityResponses,
-          self_efficacy_responses: selfEfficacyResponses,
+          familiarity_responses: Object.fromEntries(
+            familiarityQuestions.map((q) => [q, responses[q]])
+          ),
+          self_efficacy_responses: Object.fromEntries(
+            selfEfficacyQuestions.map((q) => [q, responses[q]])
+          ),
         }),
       });
 
@@ -162,7 +159,7 @@ export default function PreSurvey() {
 
       localStorage.removeItem(STORAGE_KEY);
       router.push("/experiment");
-    } catch (err) {
+    } catch {
       alert("Failed to save pre-survey responses. Please try again.");
     } finally {
       setLoading(false);
@@ -174,17 +171,14 @@ export default function PreSurvey() {
   -------------------------------- */
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Full-width Progress Bar */}
       <div className="sticky top-0 z-40 bg-white border-b">
         <ProgressBar progress={50} />
       </div>
 
       <div className="flex">
-        {/* Left task panel */}
-        <div
-          className={`border-r bg-gray-50 sticky top-[56px] h-[calc(100vh-56px)]
-          transition-all ${panelOpen ? "w-[22%]" : "w-[64px]"}`}
-        >
+        {/* Left panel */}
+        <div className={`border-r bg-gray-50 sticky top-[56px] h-[calc(100vh-56px)]
+          transition-all ${panelOpen ? "w-[22%]" : "w-[64px]"}`}>
           <div className="p-4">
             <button
               onClick={() => setPanelOpen((v) => !v)}
@@ -217,7 +211,12 @@ export default function PreSurvey() {
 
             <div className="space-y-8 mb-16">
               {familiarityQuestions.map((q, idx) => (
-                <div key={q} className="border-b pb-8 space-y-4">
+                <div
+                  key={q}
+                  ref={(el) => (questionRefs.current[q] = el)}
+                  className={`border-b pb-8 space-y-4 transition-all
+                    ${highlightQuestion === q ? "animate-flash border-2 border-red-500 rounded-lg p-4" : ""}`}
+                >
                   <p className="font-medium text-[18px]">
                     {idx + 1}. {q}
                   </p>
@@ -244,7 +243,12 @@ export default function PreSurvey() {
 
             <div className="space-y-8">
               {selfEfficacyQuestions.map((q, idx) => (
-                <div key={q} className="border-b pb-8 space-y-4">
+                <div
+                  key={q}
+                  ref={(el) => (questionRefs.current[q] = el)}
+                  className={`border-b pb-8 space-y-4 transition-all
+                    ${highlightQuestion === q ? "animate-flash border-2 border-red-500 rounded-lg p-4" : ""}`}
+                >
                   <p className="font-medium text-[18px]">
                     {idx + 1}. {q}
                   </p>
@@ -299,24 +303,49 @@ export default function PreSurvey() {
           </div>
         </div>
       )}
-            {/* Incomplete warning modal */}
+
+      {/* Incomplete warning modal */}
       {showWarningModal && (
         <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full text-center">
-            <h3 className="text-lg font-semibold mb-3">
-              ⚠️ Incomplete Responses
-            </h3>
-            <p className="text-gray-700 mb-6 leading-relaxed">
-              {incompleteWarningCount === 1
-                ? "Please answer all questions before continuing."
-                : "You may proceed, but unanswered questions will be recorded as missing."}
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full text-center space-y-6">
+            <p className="text-gray-800 text-lg">
+              There is an unanswered question on this page.
+              <br />
+              Would you like to continue?
             </p>
-            <button
-              onClick={() => setShowWarningModal(false)}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold"
-            >
-              OK
-            </button>
+
+            <div className="flex gap-4">
+              <button
+                onClick={() => {
+                  setShowWarningModal(false);
+                  router.push("/experiment");
+                }}
+                className="flex-1 px-4 py-2 border rounded-lg text-gray-700"
+              >
+                Continue Without Answering
+              </button>
+
+              <button
+                onClick={() => {
+                  const allQuestions = [...familiarityQuestions, ...selfEfficacyQuestions];
+                  const firstUnanswered = allQuestions.find((q) => responses[q] === undefined);
+
+                  if (firstUnanswered && questionRefs.current[firstUnanswered]) {
+                    questionRefs.current[firstUnanswered].scrollIntoView({
+                      behavior: "smooth",
+                      block: "center",
+                    });
+                    setHighlightQuestion(firstUnanswered);
+                    setTimeout(() => setHighlightQuestion(null), 2000);
+                  }
+
+                  setShowWarningModal(false);
+                }}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg"
+              >
+                Answer the Question
+              </button>
+            </div>
           </div>
         </div>
       )}
