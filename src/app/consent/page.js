@@ -208,26 +208,6 @@ export default function ConsentPage() {
           </label>
         </div>
 
-        {/* ===== Electronic Consent (Date Only) ===== */}
-        <div className="mt-6 space-y-4 border border-gray-200 rounded-xl p-4">
-          <h3 className="font-semibold text-lg">Electronic Consent</h3>
-          <p className="text-sm text-gray-600">
-            Please provide today’s date to indicate your electronic consent.
-          </p>
-
-          <div className="flex flex-col flex-1 max-w-xs">
-            <label className="text-sm font-medium text-gray-700">
-              Date
-            </label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
-            />
-          </div>
-        </div>
-
         {/* ===== Action Buttons ===== */}
         <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <button
