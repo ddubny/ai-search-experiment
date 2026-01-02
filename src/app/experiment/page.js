@@ -373,7 +373,7 @@ ${userInput}
         {/* Main Area */}
         <div 
            className={`flex-1 border-r overflow-hidden
-            ml-[220px] mr-[220px]`}
+            ml-[20%] mr-[18%]`}
         >
           {systemType === "search" ? (
             /* Search Engine UI */
