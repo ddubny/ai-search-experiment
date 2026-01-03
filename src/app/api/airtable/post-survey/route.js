@@ -1,5 +1,13 @@
 import { NextResponse } from "next/server";
 
+const safeStringify = (obj) => {
+  try {
+    return JSON.stringify(obj ?? {});
+  } catch {
+    return JSON.stringify({});
+  }
+};
+
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -27,20 +35,26 @@ export async function POST(req) {
     if (!process.env.AIRTABLE_API_KEY) {
       throw new Error("Missing AIRTABLE_API_KEY");
     }
+    if (!process.env.AIRTABLE_POST_SURVEY_TABLE) {
+      throw new Error("Missing AIRTABLE_POST_SURVEY_TABLE");
+    }
+
+    const safeTaskType =
+      typeof Task_type === "string" && Task_type.trim()
+        ? Task_type
+        : "unknown";
 
     const fields = {
       participant_id,
-      Task_type, // Single select or text
-      serendipity_responses: JSON.stringify(serendipity_responses || {}),
-      post_familiarity_responses: JSON.stringify(post_familiarity_responses || {}),
-      emotion_responses: JSON.stringify(emotion_responses || {}),
-      post_self_efficacy_responses: JSON.stringify(post_self_efficacy_responses || {}),
-      open_ended: JSON.stringify(open_ended || {}),
-      // created_at: Airtable auto
+      Task_type: safeTaskType,
+      serendipity_responses: safeStringify(serendipity_responses),
+      post_familiarity_responses: safeStringify(post_familiarity_responses),
+      emotion_responses: safeStringify(emotion_responses),
+      post_self_efficacy_responses: safeStringify(post_self_efficacy_responses),
+      open_ended: safeStringify(open_ended),
     };
 
-    const table =
-      process.env.AIRTABLE_POST_SURVEY_TABLE || "post_survey";
+    const table = process.env.AIRTABLE_POST_SURVEY_TABLE;
 
     const res = await fetch(
       `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${encodeURIComponent(
@@ -61,12 +75,14 @@ export async function POST(req) {
     const data = await res.json();
 
     if (!res.ok) {
-      console.error("Airtable post-survey error:", data);
-      const msg =
-        data?.error?.message ||
-        data?.error ||
-        JSON.stringify(data);
-      throw new Error(msg);
+      console.error("Airtable post-survey error:", {
+        status: res.status,
+        statusText: res.statusText,
+        data,
+      });
+      throw new Error(
+        data?.error?.message || "Failed to create Airtable record"
+      );
     }
 
     return NextResponse.json({ success: true });

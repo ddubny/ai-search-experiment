@@ -48,21 +48,23 @@ function LikertRow({
 
 export default function PostSurvey() {
   const router = useRouter();
+  const questionRefs = useRef({});
 
   const [participantId, setParticipantId] = useState(null);
   const [taskType, setTaskType] = useState("");
+
+  // section-based states
   const [serendipityResponses, setSerendipityResponses] = useState({});
   const [postFamiliarityResponses, setPostFamiliarityResponses] = useState({});
   const [emotionResponses, setEmotionResponses] = useState({});
   const [selfEfficacyResponses, setSelfEfficacyResponses] = useState({});
   const [openEndedResponses, setOpenEndedResponses] = useState({});
+
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
 
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [highlightQuestion, setHighlightQuestion] = useState(null);
-
-  const questionRefs = useRef({});
 
   /* -------------------------------
      Load participant + task type
@@ -75,8 +77,7 @@ export default function PostSurvey() {
     }
     setParticipantId(id);
 
-    const storedTaskType = localStorage.getItem("task_type");
-    setTaskType(storedTaskType || "the topic");
+    setTaskType(localStorage.getItem("task_type") || "the topic");
   }, [router]);
 
   /* -------------------------------
@@ -136,38 +137,50 @@ export default function PostSurvey() {
   ];
 
   const pages = [
-    { title: "Serendipity Experience", questions: serendipityQuestions },
-    { title: "Post-Search Familiarity", questions: postSearchFamiliarity },
-    { title: "Evaluation of Search Experience", questions: evaluationQuestions },
-    { title: "Search Self-Efficacy", questions: selfEfficacyQuestions },
-    { title: "Reflection", questions: [] },
+    { title: "Serendipity Experience", questions: serendipityQuestions, section: "serendipity" },
+    { title: "Post-Search Familiarity", questions: postSearchFamiliarity, section: "postFamiliarity" },
+    { title: "Evaluation of Search Experience", questions: evaluationQuestions, section: "emotion" },
+    { title: "Search Self-Efficacy", questions: selfEfficacyQuestions, section: "selfEfficacy" },
+    { title: "Reflection", questions: [], section: "openEnded" },
   ];
 
-  /* -------------------------------
-     Handlers
-  -------------------------------- */
-  const handleChange = (question, value) => {
-    const setters = {
-      serendipity: setSerendipityResponses,
-      postFamiliarity: setPostFamiliarityResponses,
-      emotion: setEmotionResponses,
-      selfEfficacy: setSelfEfficacyResponses,
-      openEnded: setOpenEndedResponses,
-    };
-    setters[section]((prev) => ({ ...prev, [question]: value }));
+  const sectionSetters = {
+    serendipity: setSerendipityResponses,
+    postFamiliarity: setPostFamiliarityResponses,
+    emotion: setEmotionResponses,
+    selfEfficacy: setSelfEfficacyResponses,
+    openEnded: setOpenEndedResponses,
+  };
+
+  const sectionResponses = {
+    serendipity: serendipityResponses,
+    postFamiliarity: postFamiliarityResponses,
+    emotion: emotionResponses,
+    selfEfficacy: selfEfficacyResponses,
+    openEnded: openEndedResponses,
+  };
+
+  const handleChange = (section, question, value) => {
+    sectionSetters[section]((prev) => ({
+      ...prev,
+      [question]: value,
+    }));
   };
 
   const handleFinalSubmit = async () => {
     try {
       setLoading(true);
-
       const res = await fetch("/api/airtable/post-survey", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           participant_id: participantId,
-          task_type: taskType,
-          responses,
+          Task_type: taskType,
+          serendipity_responses: serendipityResponses,
+          post_familiarity_responses: postFamiliarityResponses,
+          emotion_responses: emotionResponses,
+          post_self_efficacy_responses: selfEfficacyResponses,
+          open_ended: openEndedResponses,
         }),
       });
 
@@ -181,9 +194,11 @@ export default function PostSurvey() {
   };
 
   const handleNext = () => {
-    const currentQuestions = pages[page - 1].questions;
-    const unanswered = currentQuestions.filter(
-      (q) => responses[q] === undefined
+    const { questions, section } = pages[page - 1];
+    const currentResponses = sectionResponses[section];
+
+    const unanswered = questions.filter(
+      (q) => currentResponses[q] === undefined
     );
 
     if (unanswered.length > 0) {
@@ -203,6 +218,7 @@ export default function PostSurvey() {
      Render
   -------------------------------- */
   let qIndex = 1;
+  const { questions, section } = pages[page - 1];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -211,58 +227,48 @@ export default function PostSurvey() {
       </div>
 
       <div className="max-w-[900px] mx-auto bg-white px-8 py-12">
-        <h1 className="text-3xl font-semibold mb-4 text-center">
-          Post-Survey
-        </h1>
+        <h1 className="text-3xl font-semibold mb-4 text-center">Post-Survey</h1>
         <h2 className="text-xl font-semibold mb-10 text-center">
           {pages[page - 1].title}
         </h2>
 
-        <div className="space-y-8">
-          {pages[page - 1].questions.map((q) => (
-            <LikertRow
-              key={q}
-              index={qIndex++}
-              question={q}
-              labels={sevenPointLabels}
-              value={responses[q]}
-              onChange={(v) => handleChange(q, v)}
-              highlightRef={(el) => (questionRefs.current[q] = el)}
-              highlight={highlightQuestion === q}
-            />
-          ))}
-        </div>
+        {questions.length > 0 && (
+          <div className="space-y-8">
+            {questions.map((q) => (
+              <LikertRow
+                key={q}
+                index={qIndex++}
+                question={q}
+                labels={sevenPointLabels}
+                value={sectionResponses[section][q]}
+                onChange={(v) => handleChange(section, q, v)}
+                highlightRef={(el) => (questionRefs.current[q] = el)}
+                highlight={highlightQuestion === q}
+              />
+            ))}
+          </div>
+        )}
 
         {page === 5 && (
           <div className="space-y-10">
-            <div>
-              <p className="font-medium text-[18px] mb-3">
-                What keywords can you think of when you think about {taskType}?
-              </p>
-              <textarea
-                className="w-full border rounded-md p-4 min-h-[120px]"
-                onChange={(e) =>
-                  handleChange("keywords_free_response", e.target.value)
-                }
-              />
-            </div>
-
-            <div>
-              <p className="font-medium text-[18px] mb-3">
-                You conducted a search to broadly explore information on the given topic.
-                Among the information you found, was there any that you considered meaningful
-                to your daily life or that you wanted to remember?
-              </p>
-              <textarea
-                className="w-full border rounded-md p-4 min-h-[140px]"
-                onChange={(e) =>
-                  handleChange(
-                    "meaningful_information_free_response",
-                    e.target.value
-                  )
-                }
-              />
-            </div>
+            <textarea
+              className="w-full border rounded-md p-4 min-h-[120px]"
+              placeholder="Keywords you can think of"
+              onChange={(e) =>
+                handleChange("openEnded", "keywords_free_response", e.target.value)
+              }
+            />
+            <textarea
+              className="w-full border rounded-md p-4 min-h-[140px]"
+              placeholder="Any information meaningful to you?"
+              onChange={(e) =>
+                handleChange(
+                  "openEnded",
+                  "meaningful_information_free_response",
+                  e.target.value
+                )
+              }
+            />
           </div>
         )}
 
@@ -272,20 +278,16 @@ export default function PostSurvey() {
             disabled={loading}
             className="px-10 py-4 bg-blue-600 text-white rounded-lg font-semibold text-lg disabled:opacity-50"
           >
-            {loading
-              ? "Submitting..."
-              : page < pages.length
-              ? "Next"
-              : "Submit Survey"}
+            {loading ? "Submitting..." : page < pages.length ? "Next" : "Submit Survey"}
           </button>
         </div>
       </div>
 
-      {/* Incomplete warning modal */}
+      {/* Warning Modal (Pre-survey style) */}
       {showWarningModal && (
-        <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full text-center space-y-6">
-            <p className="text-gray-800 text-lg">
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full text-center space-y-6">
+            <p>
               There is an unanswered question on this page.
               <br />
               Would you like to continue?
@@ -295,29 +297,19 @@ export default function PostSurvey() {
               <button
                 onClick={() => {
                   setShowWarningModal(false);
-                  if (page < pages.length) {
-                    setPage(page + 1);
-                    window.scrollTo(0, 0);
-                  } else {
-                    handleFinalSubmit();
-                  }
+                  page < pages.length ? setPage(page + 1) : handleFinalSubmit();
                 }}
-                className="flex-1 px-4 py-2 border rounded-lg text-gray-700"
+                className="flex-1 border rounded-lg py-2"
               >
                 Continue Without Answering
               </button>
 
               <button
                 onClick={() => {
-                  const currentQuestions = pages[page - 1].questions;
-                  const firstUnanswered = currentQuestions.find(
-                    (q) => responses[q] === undefined
+                  const firstUnanswered = questions.find(
+                    (q) => sectionResponses[section][q] === undefined
                   );
-
-                  if (
-                    firstUnanswered &&
-                    questionRefs.current[firstUnanswered]
-                  ) {
+                  if (firstUnanswered && questionRefs.current[firstUnanswered]) {
                     questionRefs.current[firstUnanswered].scrollIntoView({
                       behavior: "smooth",
                       block: "center",
@@ -325,10 +317,9 @@ export default function PostSurvey() {
                     setHighlightQuestion(firstUnanswered);
                     setTimeout(() => setHighlightQuestion(null), 2000);
                   }
-
                   setShowWarningModal(false);
                 }}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg"
+                className="flex-1 bg-blue-600 text-white rounded-lg py-2"
               >
                 Answer the Question
               </button>
