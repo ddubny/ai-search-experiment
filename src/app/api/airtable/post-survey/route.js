@@ -49,12 +49,11 @@ export async function POST(req) {
       open_ended: safeStringify(open_ended),
     };
 
-    const table = process.env.AIRTABLE_POST_SURVEY_TABLE;
+
+    const table = process.env.AIRTABLE_POST_SURVEY_TABLE || "post_survey";
 
     const res = await fetch(
-      `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${encodeURIComponent(
-        table
-      )}`,
+      `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${encodeURIComponent(table)}`,
       {
         method: "POST",
         headers: {
