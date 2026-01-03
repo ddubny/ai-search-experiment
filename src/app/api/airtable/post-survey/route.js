@@ -6,24 +6,46 @@ export async function POST(req) {
 
     const {
       participant_id,
-      responses,
-      reflections,
-      created_at,
+      Task_type,
+      serendipity_responses,
+      post_familiarity_responses,
+      emotion_responses,
+      post_self_efficacy_responses,
+      open_ended,
     } = body;
 
-    if (!participant_id || !responses) {
-      throw new Error("participant_id and responses are required");
+    if (!participant_id) {
+      throw new Error("participant_id is required");
+    }
+    if (!Task_type) {
+      throw new Error("Task_type is required");
+    }
+
+    if (!process.env.AIRTABLE_BASE_ID) {
+      throw new Error("Missing AIRTABLE_BASE_ID");
+    }
+    if (!process.env.AIRTABLE_API_KEY) {
+      throw new Error("Missing AIRTABLE_API_KEY");
     }
 
     const fields = {
       participant_id,
-      responses: JSON.stringify(responses),
-      reflections: reflections || "",
-      created_at: created_at || new Date().toISOString(),
+      Task_type, // Single select or text
+      serendipity_responses: JSON.stringify(serendipity_responses || {}),
+      post_familiarity_responses: JSON.stringify(post_familiarity_responses || {}),
+      emotion_responses: JSON.stringify(emotion_responses || {}),
+      post_self_efficacy_responses: JSON.stringify(post_self_efficacy_responses || {}),
+      open_ended: JSON.stringify(open_ended || {}),
+      // created_at: Airtable auto
     };
 
+    const table =
+      process.env.AIRTABLE_POST_SURVEY_TABLE || "post_survey";
+
     const res = await fetch(
-      `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/post_survey`,
+      `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${encodeURIComponent(
+        table
+      )}`,
       {
         method: "POST",
         headers: {
@@ -40,7 +62,11 @@ export async function POST(req) {
 
     if (!res.ok) {
       console.error("Airtable post-survey error:", data);
-      throw new Error("Failed to save post-survey");
+      const msg =
+        data?.error?.message ||
+        data?.error ||
+        JSON.stringify(data);
+      throw new Error(msg);
     }
 
     return NextResponse.json({ success: true });
