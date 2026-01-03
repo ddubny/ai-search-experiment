@@ -1,15 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ProgressBar from "../../components/ProgressBar";
 
 /* -------------------------------
-   Pre-survey style Likert Row
+   Likert Row (Pre-survey style)
 -------------------------------- */
-function LikertRow({ index, question, labels, value, onChange }) {
+function LikertRow({
+  index,
+  question,
+  labels,
+  value,
+  onChange,
+  highlightRef,
+  highlight,
+}) {
   return (
-    <div className="border-b pb-8 space-y-4">
+    <div
+      ref={highlightRef}
+      className={`border-b pb-8 space-y-4 transition-all
+        ${highlight ? "animate-flash border-2 border-red-500 rounded-lg p-4" : ""}`}
+    >
       <p className="font-medium text-[18px]">
         {index}. {question}
       </p>
@@ -42,6 +54,11 @@ export default function PostSurvey() {
   const [responses, setResponses] = useState({});
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
+
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [highlightQuestion, setHighlightQuestion] = useState(null);
+
+  const questionRefs = useRef({});
 
   /* -------------------------------
      Load participant + task type
@@ -129,14 +146,37 @@ export default function PostSurvey() {
     setResponses((prev) => ({ ...prev, [question]: value }));
   };
 
-  const handleNext = async () => {
+  const handleFinalSubmit = async () => {
+    try {
+      setLoading(true);
+
+      const res = await fetch("/api/airtable/post-survey", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          participant_id: participantId,
+          task_type: taskType,
+          responses,
+        }),
+      });
+
+      if (!res.ok) throw new Error(await res.text());
+      router.push("/demographic");
+    } catch {
+      alert("Failed to save your responses. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleNext = () => {
     const currentQuestions = pages[page - 1].questions;
     const unanswered = currentQuestions.filter(
       (q) => responses[q] === undefined
     );
 
     if (unanswered.length > 0) {
-      alert("Please answer all questions before continuing.");
+      setShowWarningModal(true);
       return;
     }
 
@@ -144,26 +184,7 @@ export default function PostSurvey() {
       setPage(page + 1);
       window.scrollTo(0, 0);
     } else {
-      try {
-        setLoading(true);
-
-        const res = await fetch("/api/airtable/post-survey", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            participant_id: participantId,
-            task_type: taskType,
-            responses,
-          }),
-        });
-
-        if (!res.ok) throw new Error(await res.text());
-        router.push("/demographic");
-      } catch {
-        alert("Failed to save your responses. Please try again.");
-      } finally {
-        setLoading(false);
-      }
+      handleFinalSubmit();
     }
   };
 
@@ -186,7 +207,6 @@ export default function PostSurvey() {
           {pages[page - 1].title}
         </h2>
 
-        {/* Likert Questions */}
         <div className="space-y-8">
           {pages[page - 1].questions.map((q) => (
             <LikertRow
@@ -196,11 +216,12 @@ export default function PostSurvey() {
               labels={sevenPointLabels}
               value={responses[q]}
               onChange={(v) => handleChange(q, v)}
+              highlightRef={(el) => (questionRefs.current[q] = el)}
+              highlight={highlightQuestion === q}
             />
           ))}
         </div>
 
-        {/* Free-text page */}
         {page === 5 && (
           <div className="space-y-10">
             <div>
@@ -248,6 +269,62 @@ export default function PostSurvey() {
           </button>
         </div>
       </div>
+
+      {/* Incomplete warning modal */}
+      {showWarningModal && (
+        <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center">
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full text-center space-y-6">
+            <p className="text-gray-800 text-lg">
+              There is an unanswered question on this page.
+              <br />
+              Would you like to continue?
+            </p>
+
+            <div className="flex gap-4">
+              <button
+                onClick={() => {
+                  setShowWarningModal(false);
+                  if (page < pages.length) {
+                    setPage(page + 1);
+                    window.scrollTo(0, 0);
+                  } else {
+                    handleFinalSubmit();
+                  }
+                }}
+                className="flex-1 px-4 py-2 border rounded-lg text-gray-700"
+              >
+                Continue Without Answering
+              </button>
+
+              <button
+                onClick={() => {
+                  const currentQuestions = pages[page - 1].questions;
+                  const firstUnanswered = currentQuestions.find(
+                    (q) => responses[q] === undefined
+                  );
+
+                  if (
+                    firstUnanswered &&
+                    questionRefs.current[firstUnanswered]
+                  ) {
+                    questionRefs.current[firstUnanswered].scrollIntoView({
+                      behavior: "smooth",
+                      block: "center",
+                    });
+                    setHighlightQuestion(firstUnanswered);
+                    setTimeout(() => setHighlightQuestion(null), 2000);
+                  }
+
+                  setShowWarningModal(false);
+                }}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg"
+              >
+                Answer the Question
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
