@@ -14,7 +14,6 @@ export async function POST(req) {
 
     const {
       participant_id,
-      Task_type,
       serendipity_responses,
       post_familiarity_responses,
       emotion_responses,
@@ -31,14 +30,9 @@ export async function POST(req) {
     if (!process.env.AIRTABLE_API_KEY) {
       throw new Error("Missing AIRTABLE_API_KEY");
     }
-    if (!process.env.AIRTABLE_POST_SURVEY_TABLE) {
-      throw new Error("Missing AIRTABLE_POST_SURVEY_TABLE");
-    }
 
-    const safeTaskType =
-      typeof Task_type === "string" && Task_type.trim()
-        ? Task_type
-        : "unknown";
+    // ✅ pre-survey처럼 fallback 허용
+    const table = process.env.AIRTABLE_POST_SURVEY_TABLE || "post_survey";
 
     const fields = {
       participant_id,
@@ -49,24 +43,28 @@ export async function POST(req) {
       open_ended: safeStringify(open_ended),
     };
 
-
-    const table = process.env.AIRTABLE_POST_SURVEY_TABLE || "post_survey";
-
     const res = await fetch(
-      `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${encodeURIComponent(table)}`,
+      `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${encodeURIComponent(
+        table
+      )}`,
       {
         method: "POST",
         headers: {
           Authorization: `Bearer ${process.env.AIRTABLE_API_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          records: [{ fields }],
-        }),
+        body: JSON.stringify({ records: [{ fields }] }),
       }
     );
 
-    const data = await res.json();
+    // Airtable은 실패/성공 모두 JSON이지만, 혹시 모를 경우 대비
+    const text = await res.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { raw: text };
+    }
 
     if (!res.ok) {
       console.error("Airtable post-survey error:", {
@@ -74,16 +72,19 @@ export async function POST(req) {
         statusText: res.statusText,
         data,
       });
-      throw new Error(
-        data?.error?.message || "Failed to create Airtable record"
+
+      // ✅ 프론트에서 바로 원인 보게 JSON으로 리턴
+      return NextResponse.json(
+        { success: false, where: "airtable", status: res.status, data },
+        { status: 500 }
       );
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error("PostSurvey API error:", error);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, where: "server", error: error.message },
       { status: 500 }
     );
   }

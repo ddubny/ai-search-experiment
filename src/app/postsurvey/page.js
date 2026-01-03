@@ -183,14 +183,25 @@ export default function PostSurvey() {
         }),
       });
 
-      if (!res.ok) throw new Error(await res.text());
-      router.push("/demographic");
-    } catch {
-      alert("Failed to save your responses. Please try again.");
-    } finally {
-      setLoading(false);
+    if (!res.ok) {
+      const errText = await res.text();
+      let err;
+      try {
+        err = JSON.parse(errText);
+      } catch {
+        err = { raw: errText };
+      }
+      alert("SAVE FAILED:\n\n" + JSON.stringify(err, null, 2));
+      return;
     }
-  };
+
+    router.push("/demographic");
+  } catch (e) {
+    alert("SAVE FAILED (network/runtime):\n\n" + (e?.message || String(e)));
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleNext = () => {
     const { questions, section } = pages[page - 1];
