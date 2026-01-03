@@ -227,7 +227,7 @@ export default function PreSurvey() {
                           type="radio"
                           checked={responses[q] === i + 1}
                           onChange={() => handleChange(q, i + 1)}
-                          className="mb-2 accent-blue-600 scale-125"
+                          className="w-7 h-7 accent-blue-600 hover:scale-110 transition-transform cursor-pointer"
                         />
                         <span>{label}</span>
                       </label>
@@ -259,7 +259,7 @@ export default function PreSurvey() {
                           type="radio"
                           checked={responses[q] === i + 1}
                           onChange={() => handleChange(q, i + 1)}
-                          className="mb-2 accent-blue-600 scale-125"
+                          className="w-7 h-7 accent-blue-600 hover:scale-110 transition-transform cursor-pointer"
                         />
                         <span>{label}</span>
                       </label>
