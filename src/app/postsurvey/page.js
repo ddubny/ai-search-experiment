@@ -175,7 +175,6 @@ export default function PostSurvey() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           participant_id: participantId,
-          Task_type: taskType,
           serendipity_responses: serendipityResponses,
           post_familiarity_responses: postFamiliarityResponses,
           emotion_responses: emotionResponses,
@@ -278,7 +277,7 @@ export default function PostSurvey() {
             disabled={loading}
             className="px-10 py-4 bg-blue-600 text-white rounded-lg font-semibold text-lg disabled:opacity-50"
           >
-            {loading ? "Submitting..." : page < pages.length ? "Next" : "Submit Survey"}
+            {loading ? "Submitting..." : page < pages.length ? "Next" : "Submit"}
           </button>
         </div>
       </div>

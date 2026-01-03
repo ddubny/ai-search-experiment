@@ -25,10 +25,6 @@ export async function POST(req) {
     if (!participant_id) {
       throw new Error("participant_id is required");
     }
-    if (!Task_type) {
-      throw new Error("Task_type is required");
-    }
-
     if (!process.env.AIRTABLE_BASE_ID) {
       throw new Error("Missing AIRTABLE_BASE_ID");
     }
@@ -46,7 +42,6 @@ export async function POST(req) {
 
     const fields = {
       participant_id,
-      Task_type: safeTaskType,
       serendipity_responses: safeStringify(serendipity_responses),
       post_familiarity_responses: safeStringify(post_familiarity_responses),
       emotion_responses: safeStringify(emotion_responses),
