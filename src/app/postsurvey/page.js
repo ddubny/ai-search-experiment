@@ -137,11 +137,11 @@ export default function PostSurvey() {
   ];
 
   const pages = [
-    { title: "Serendipity Experience", questions: serendipityQuestions, section: "serendipity" },
-    { title: "Post-Search Familiarity", questions: postSearchFamiliarity, section: "postFamiliarity" },
-    { title: "Evaluation of Search Experience", questions: evaluationQuestions, section: "emotion" },
-    { title: "Search Self-Efficacy", questions: selfEfficacyQuestions, section: "selfEfficacy" },
-    { title: "Reflection", questions: [], section: "openEnded" },
+    { title: "", questions: serendipityQuestions, section: "serendipity" },
+    { title: "", questions: postSearchFamiliarity, section: "postFamiliarity" },
+    { title: "", questions: evaluationQuestions, section: "emotion" },
+    { title: "", questions: selfEfficacyQuestions, section: "selfEfficacy" },
+    { title: "", questions: [], section: "openEnded" },
   ];
 
   const sectionSetters = {
@@ -237,7 +237,6 @@ export default function PostSurvey() {
       </div>
 
       <div className="max-w-[900px] mx-auto bg-white px-8 py-12">
-        <h1 className="text-3xl font-semibold mb-4 text-center">Post-Survey</h1>
         <h2 className="text-xl font-semibold mb-10 text-center">
           {pages[page - 1].title}
         </h2>
@@ -261,24 +260,34 @@ export default function PostSurvey() {
 
         {page === 5 && (
           <div className="space-y-10">
-            <textarea
-              className="w-full border rounded-md p-4 min-h-[120px]"
-              placeholder="Keywords you can think of"
-              onChange={(e) =>
-                handleChange("openEnded", "keywords_free_response", e.target.value)
-              }
-            />
-            <textarea
-              className="w-full border rounded-md p-4 min-h-[140px]"
-              placeholder="Any information meaningful to you?"
-              onChange={(e) =>
-                handleChange(
-                  "openEnded",
-                  "meaningful_information_free_response",
-                  e.target.value
-                )
-              }
-            />
+
+             {/* Question 1 */}
+            <div className="space-y-3">
+               <p className="font-medium text-[18px]">
+                What keywords can you think of when you think about <strong>{taskType}</strong>?
+               </p>
+              <textarea
+                className="w-full border rounded-md p-4 min-h-[120px]"
+                placeholder="Please list any keywords that come to mind."
+                onChange={(e) =>
+                  handleChange("openEnded", "OEQ1", e.target.value)
+                }
+              />
+            </div>
+
+          {/* Question 2 */}
+            <div className="space-y-3">
+              <p className="font-medium text-[18px]">
+                Among the information you found during the search, was there anything that felt meaningful to your daily life or that you wanted to remember?
+              </p>
+              <textarea
+                className="w-full border rounded-md p-4 min-h-[140px]"
+                placeholder="Any information meaningful to you?"
+                onChange={(e) =>
+                  handleChange("openEnded", "OEQ2", e.target.value)
+                }
+              />
+            </div>
           </div>
         )}
 
