@@ -4,6 +4,36 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ProgressBar from "../../components/ProgressBar";
 
+/* -------------------------------
+   Likert Row (Pre-survey style)
+-------------------------------- */
+function LikertRow({ index, question, labels, value, onChange }) {
+  return (
+    <div className="border-b py-10">
+      <p className="font-medium text-[18px] mb-8">
+        {index}. {question}
+      </p>
+
+      <div className="flex justify-between max-w-[760px] mx-auto text-sm text-gray-700">
+        {labels.map((label, i) => (
+          <label
+            key={label}
+            className="flex flex-col items-center gap-2 cursor-pointer w-[120px]"
+          >
+            <input
+              type="radio"
+              checked={value === i + 1}
+              onChange={() => onChange(i + 1)}
+              className="accent-blue-600 scale-125"
+            />
+            <span className="text-center">{label}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function PostSurvey() {
   const router = useRouter();
 
@@ -33,7 +63,6 @@ export default function PostSurvey() {
   /* -------------------------------
      Question Sets
   -------------------------------- */
-
   const serendipityQuestions = [
     "I obtained unexpected insights.",
     "I made connections that I had not thought of before.",
@@ -50,20 +79,6 @@ export default function PostSurvey() {
     `How familiar are you now with ongoing debates or controversies related to ${topic}?`,
   ];
 
-  const overallEvaluation = [
-    "My overall experience with search (bad / good)",
-    "Degree of information provided to users (complete / incomplete)",
-    "Your understanding of information (insufficient / sufficient)",
-    "Your feelings of participating in search (negative / positive)",
-    "Attitude of search engines/chat AI (cooperative / belligerent)",
-    "Communication with the search engines/chat AI (destructive / productive)",
-    "Reliability of output information (high / low)",
-    "Relevancy of output information (relevant / irrelevant)",
-    "Accuracy of output information (inaccurate / accurate)",
-    "Precision of output information (definite / uncertain)",
-    "Completeness of the output information (adequate / inadequate)",
-  ];
-
   const selfEfficacyQuestions = [
     "I am usually able to think up creative and effective search strategies to find interesting and valuable information.",
     "I have the ability to find answers, even when I have no immediate or prior knowledge of the subject.",
@@ -77,31 +92,41 @@ export default function PostSurvey() {
     "When confronted with difficult tasks, I am unsure whether I can find insightful information.",
   ];
 
-  const likertLabels = [
-    "Strongly Disagree",
-    "Disagree",
-    "Slightly Disagree",
-    "Neutral",
-    "Slightly Agree",
-    "Agree",
-    "Strongly Agree",
+  const evaluationQuestions = [
+    "My overall experience with search (bad / good)",
+    "Degree of information provided to users (complete / incomplete)",
+    "Your understanding of information (insufficient / sufficient)",
+    "Your feelings of participating in search (negative / positive)",
+    "Attitude of search engines/chat AI (cooperative / belligerent)",
+    "Communication with the search engines/chat AI (destructive / productive)",
+    "Reliability of output information (high / low)",
+    "Relevancy of output information (relevant / irrelevant)",
+    "Accuracy of output information (inaccurate / accurate)",
+    "Precision of output information (definite / uncertain)",
+    "Completeness of the output information (adequate / inadequate)",
+  ];
+
+  const fivePointLabels = [
+    "Not at all",
+    "Slightly",
+    "Moderately",
+    "Very",
+    "Extremely",
   ];
 
   /* -------------------------------
-     Handle response
+     Handlers
   -------------------------------- */
   const handleChange = (question, value) => {
     setResponses((prev) => ({ ...prev, [question]: value }));
   };
 
-  /* -------------------------------
-     Submit
-  -------------------------------- */
   const handleSubmit = async () => {
     if (loading) return;
 
     try {
       setLoading(true);
+
       const res = await fetch("/api/airtable/post-survey", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -115,7 +140,7 @@ export default function PostSurvey() {
       if (!res.ok) throw new Error(await res.text());
 
       router.push("/demographic");
-    } catch (err) {
+    } catch {
       alert("Failed to save your responses. Please try again.");
     } finally {
       setLoading(false);
@@ -123,93 +148,101 @@ export default function PostSurvey() {
   };
 
   /* -------------------------------
-     Render helpers
-  -------------------------------- */
-  const renderLikert = (questions) =>
-    questions.map((q, i) => (
-      <div key={i} className="grid grid-cols-[1.2fr_auto] gap-10 items-center border-b pb-6">
-        <p className="text-gray-800 text-[17px] leading-relaxed">{q}</p>
-        <div className="flex justify-between gap-10 bg-gray-50 rounded-lg px-6 py-4 w-[720px]">
-          {[1, 2, 3, 4, 5, 6, 7].map((val) => (
-            <label key={val} className="flex flex-col items-center cursor-pointer">
-              <input
-                type="radio"
-                name={q}
-                checked={responses[q] === val}
-                onChange={() => handleChange(q, val)}
-                className="w-7 h-7 accent-blue-600 hover:scale-110 transition-transform"
-              />
-            </label>
-          ))}
-        </div>
-      </div>
-    ));
-
-  /* -------------------------------
      Render
   -------------------------------- */
+  let qIndex = 1;
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="w-full px-6 py-4 bg-gray-50 border-b sticky top-0 z-50">
+      <div className="sticky top-0 z-40 bg-white border-b">
         <ProgressBar progress={90} />
       </div>
 
-      <div className="max-w-6xl mx-auto bg-white p-12 mt-8 rounded-2xl shadow-md">
-        <h1 className="text-3xl font-semibold mb-10 text-center">
+      <div className="max-w-[900px] mx-auto bg-white px-8 py-12">
+        <h1 className="text-3xl font-semibold mb-12 text-center">
           Post-Survey
         </h1>
 
-        <div className="flex justify-end pr-8 mb-6">
-          <div className="flex justify-between gap-10 text-sm text-gray-600 font-medium w-[720px]">
-            {likertLabels.map((l, i) => (
-              <span key={i} className="text-center w-[90px]">
-                {l}
-              </span>
-            ))}
-          </div>
+        {/* Serendipity */}
+        {serendipityQuestions.map((q) => (
+          <LikertRow
+            key={q}
+            index={qIndex++}
+            question={q}
+            labels={fivePointLabels}
+            value={responses[q]}
+            onChange={(v) => handleChange(q, v)}
+          />
+        ))}
+
+        {/* Post-search familiarity */}
+        {postSearchFamiliarity.map((q) => (
+          <LikertRow
+            key={q}
+            index={qIndex++}
+            question={q}
+            labels={fivePointLabels}
+            value={responses[q]}
+            onChange={(v) => handleChange(q, v)}
+          />
+        ))}
+
+        {/* Evaluation */}
+        {evaluationQuestions.map((q) => (
+          <LikertRow
+            key={q}
+            index={qIndex++}
+            question={q}
+            labels={fivePointLabels}
+            value={responses[q]}
+            onChange={(v) => handleChange(q, v)}
+          />
+        ))}
+
+        {/* Self-efficacy */}
+        {selfEfficacyQuestions.map((q) => (
+          <LikertRow
+            key={q}
+            index={qIndex++}
+            question={q}
+            labels={fivePointLabels}
+            value={responses[q]}
+            onChange={(v) => handleChange(q, v)}
+          />
+        ))}
+
+        {/* Free text */}
+        <div className="border-b py-10">
+          <p className="font-medium text-[18px] mb-4">
+            What keywords can you think of when you think about {topic}?
+          </p>
+          <textarea
+            className="w-full border rounded-md p-4 min-h-[120px]"
+            onChange={(e) =>
+              handleChange("keywords_free_response", e.target.value)
+            }
+          />
         </div>
 
-        <form className="space-y-14">
-          {renderLikert(serendipityQuestions)}
-          {renderLikert(postSearchFamiliarity)}
-          {renderLikert(overallEvaluation)}
-          {renderLikert(selfEfficacyQuestions)}
-
-          {/* Free text */}
-          <div className="space-y-8 pt-8">
-            <div>
-              <p className="mb-3 font-medium">
-                What keywords can you think of when you think about {topic}?
-              </p>
-              <textarea
-                className="w-full border rounded-lg p-4 min-h-[120px]"
-                onChange={(e) =>
-                  handleChange("keywords_free_response", e.target.value)
-                }
-              />
-            </div>
-
-            <div>
-              <p className="mb-3 font-medium">
-                You conducted a search to broadly explore information on the given topic.
-                Among the information you found, was there any that you considered meaningful
-                to your daily life or that you wanted to remember?
-              </p>
-              <textarea
-                className="w-full border rounded-lg p-4 min-h-[140px]"
-                onChange={(e) =>
-                  handleChange("meaningful_information_free_response", e.target.value)
-                }
-              />
-            </div>
-          </div>
-        </form>
+        <div className="border-b py-10">
+          <p className="font-medium text-[18px] mb-4">
+            You conducted a search to broadly explore information on the given topic.
+            Among the information you found, was there any that you considered meaningful
+            to your daily life or that you wanted to remember?
+          </p>
+          <textarea
+            className="w-full border rounded-md p-4 min-h-[140px]"
+            onChange={(e) =>
+              handleChange("meaningful_information_free_response", e.target.value)
+            }
+          />
+        </div>
 
         <div className="mt-16 text-center">
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="px-10 py-4 bg-blue-600 text-white font-semibold rounded-lg text-lg hover:bg-blue-700 disabled:opacity-50"
+            className="px-10 py-4 bg-blue-600 text-white rounded-lg font-semibold text-lg disabled:opacity-50"
           >
             {loading ? "Submitting..." : "Submit Survey"}
           </button>
