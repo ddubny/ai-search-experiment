@@ -102,6 +102,12 @@ export default function DemographicSurvey() {
     );
   };
 
+  useEffect(() => {
+    if (formData.race.length > 0) {
+      setHighlightFields((prev) => prev.filter((f) => f !== "race"));
+    }
+  }, [formData.race]);
+
   const buildAirtablePayloadFields = () => {
     const fields = {
       participant_id: participantId,
