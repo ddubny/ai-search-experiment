@@ -303,7 +303,7 @@ export default function PostSurvey() {
         </div>
       </div>
 
-      {/* Warning Modal (Pre-survey style) */}
+      {/* Warning Modal */}
       {showWarningModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full text-center space-y-6">

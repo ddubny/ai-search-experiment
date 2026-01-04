@@ -6,6 +6,7 @@ import ProgressBar from "../../components/ProgressBar";
 
 export default function DemographicSurvey() {
   const router = useRouter();
+
   const [formData, setFormData] = useState({
     age: "",
     gender: "",
@@ -14,29 +15,68 @@ export default function DemographicSurvey() {
     race: [],
     hispanic: "",
   });
-  const [participantId, setParticipantId] = useState(null); 
+
+  const [participantId, setParticipantId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [showWarningModal, setShowWarningModal] = useState(false);
 
-  // ✅ localStorage에서 participant_id 불러오기
+  const requiredFields = ["age", "gender", "education", "hispanic"];
+
+  /* -----------------------------
+     participant_id 불러오기
+  ------------------------------*/
   useEffect(() => {
     const id = localStorage.getItem("participant_id");
     if (!id) {
-      window.location.href = "/check"; // ID가 없으면 초기 페이지로
+      window.location.href = "/check";
       return;
     }
     setParticipantId(id);
   }, []);
 
+  /* -----------------------------
+     formData 복원 (새로고침/뒤로가기)
+  ------------------------------*/
+  useEffect(() => {
+    const saved = localStorage.getItem("demographic_form");
+    if (saved) {
+      setFormData(JSON.parse(saved));
+    }
+  }, []);
+
+  /* -----------------------------
+     formData 자동 저장
+  ------------------------------*/
+  useEffect(() => {
+    localStorage.setItem("demographic_form", JSON.stringify(formData));
+  }, [formData]);
+
+  /* -----------------------------
+     필수 문항 미응답 체크
+  ------------------------------*/
+  const hasUnansweredRequired = () => {
+    return requiredFields.some((field) => {
+      if (field === "gender") {
+        return !formData.gender;
+      }
+      return !formData[field];
+    });
+  };
+
+  /* -----------------------------
+     입력 변경 핸들러
+  ------------------------------*/
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+
     if (type === "checkbox") {
-      setFormData((prev) => {
-        const updated = checked
+      setFormData((prev) => ({
+        ...prev,
+        race: checked
           ? [...prev.race, value]
-          : prev.race.filter((r) => r !== value);
-        return { ...prev, race: updated };
-      });
+          : prev.race.filter((r) => r !== value),
+      }));
     } else {
       setFormData((prev) => ({
         ...prev,
@@ -45,15 +85,20 @@ export default function DemographicSurvey() {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage("");
+  /* -----------------------------
+     실제 저장 로직 (Airtable)
+  ------------------------------*/
+  const submitData = async () => {
+    if (!participantId) {
+      setMessage("Participant ID missing. Please restart the study.");
+      setLoading(false);
+      return;
+    }
 
     try {
       const res = await fetch("/api/airtable/demographic", {
         method: "POST",
-        headers: {"Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           participant_id: participantId,
           age: formData.age,
@@ -62,13 +107,14 @@ export default function DemographicSurvey() {
               ? formData.gender_other
               : formData.gender,
           education: formData.education,
-          race: formData.race, // ⚠️ join 안 함 (Airtable multi-select 대응)
+          race: formData.race,
           hispanic: formData.hispanic,
         }),
       });
-      
+
       if (!res.ok) throw new Error("Save failed");
 
+      localStorage.removeItem("demographic_form");
       router.push("/thankyou");
     } catch (err) {
       console.error("❌ Error inserting demographic data:", err);
@@ -78,14 +124,26 @@ export default function DemographicSurvey() {
     }
   };
 
+  /* -----------------------------
+     Submit 핸들러
+  ------------------------------*/
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    if (hasUnansweredRequired()) {
+      setShowWarningModal(true);
+      return;
+    }
+
+    setLoading(true);
+    setMessage("");
+    submitData();
+  };
+
   return (
     <div className="w-full h-screen flex flex-col bg-gray-50">
-      {/* ✅ Progress Bar */}
-      <div className="w-full">
-        <ProgressBar progress={100} />
-      </div>
+      <ProgressBar progress={100} />
 
-      {/* ✅ Survey Form */}
       <div className="flex-1 flex items-center justify-center">
         <div className="w-full max-w-2xl bg-white shadow-lg rounded-2xl p-10 overflow-y-auto max-h-[85vh]">
           <h1 className="text-2xl font-bold mb-6 text-center">
@@ -117,7 +175,6 @@ export default function DemographicSurvey() {
                   <div key={option} className="flex items-center mb-1">
                     <input
                       type="radio"
-                      id={option}
                       name="gender"
                       value={option}
                       checked={formData.gender === option}
@@ -125,7 +182,7 @@ export default function DemographicSurvey() {
                       className="mr-2"
                       required
                     />
-                    <label htmlFor={option}>{option}</label>
+                    <label>{option}</label>
                   </div>
                 )
               )}
@@ -180,14 +237,12 @@ export default function DemographicSurvey() {
                 <div key={race} className="flex items-center mb-1">
                   <input
                     type="checkbox"
-                    id={race}
-                    name="race"
                     value={race}
                     checked={formData.race.includes(race)}
                     onChange={handleChange}
                     className="mr-2"
                   />
-                  <label htmlFor={race}>{race}</label>
+                  <label>{race}</label>
                 </div>
               ))}
             </div>
@@ -201,7 +256,6 @@ export default function DemographicSurvey() {
                 <div key={option} className="flex items-center mb-1">
                   <input
                     type="radio"
-                    id={option}
                     name="hispanic"
                     value={option}
                     checked={formData.hispanic === option}
@@ -209,12 +263,11 @@ export default function DemographicSurvey() {
                     className="mr-2"
                     required
                   />
-                  <label htmlFor={option}>{option}</label>
+                  <label>{option}</label>
                 </div>
               ))}
             </div>
 
-            {/* Submit */}
             <div className="text-center pt-4">
               <button
                 type="submit"
@@ -228,6 +281,39 @@ export default function DemographicSurvey() {
           </form>
         </div>
       </div>
+
+      {/* Warning Modal */}
+      {showWarningModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full text-center space-y-6">
+            <p>
+              There is an unanswered question on this page.
+              <br />
+              Would you like to continue?
+            </p>
+
+            <div className="flex gap-4">
+              <button
+                onClick={() => {
+                  setShowWarningModal(false);
+                  setLoading(true);
+                  submitData();
+                }}
+                className="flex-1 border rounded-lg py-2"
+              >
+                Continue Without Answering
+              </button>
+
+              <button
+                onClick={() => setShowWarningModal(false)}
+                className="flex-1 bg-blue-600 text-white rounded-lg py-2"
+              >
+                Answer the Question
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
