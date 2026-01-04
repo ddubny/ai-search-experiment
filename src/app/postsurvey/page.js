@@ -237,6 +237,7 @@ export default function PostSurvey() {
       </div>
 
       <div className="max-w-[900px] mx-auto bg-white px-8 py-12">
+        <h1 className="text-3xl font-semibold mb-4 text-center">Survey</h1>
         <h2 className="text-xl font-semibold mb-10 text-center">
           {pages[page - 1].title}
         </h2>
