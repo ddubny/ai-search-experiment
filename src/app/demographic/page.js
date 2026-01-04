@@ -77,7 +77,8 @@ export default function DemographicSurvey() {
       if (field === "race") {
         return !Array.isArray(formData.race) || formData.race.length === 0;
       }
-      return !v;
+      const v = formData[field];
+      return !String(v ?? "").trim();
     });
   };
 
