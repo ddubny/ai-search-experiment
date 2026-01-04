@@ -68,21 +68,13 @@ export default function DemographicSurvey() {
      필수 문항 미응답 체크
   ------------------------------*/
   const getUnansweredRequiredFields = () => {
-    return requiredFields.filter((field) => {
-      const v = formData[field];
-      if (field === "age") return !String(v).trim();
-      if (field === "gender") return !String(v).trim();
-      if (field === "education") return !String(v).trim();
-      if (field === "hispanic") return !String(v).trim();
-      
-      return !v;
-    });
+    return requiredFields.filter((field) => !isAnswered(field));
   };
 
   const hasUnansweredRequired = () => getUnansweredRequiredFields().length > 0;
 
   /* -----------------------------
-     입력 변경 (✅ 에러 수정 + race 체크/해제 인식 정확화)
+     입력 변경 
   ------------------------------*/
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -213,6 +205,13 @@ export default function DemographicSurvey() {
 
     setShowWarningModal(false);
     setTimeout(() => setHighlightFields([]), 2000);
+  };
+
+  const isAnswered = (field) => {
+    if (field === "race") {
+      return formData.race.length > 0;
+    }
+    return String(formData[field] ?? "").trim() !== "";
   };
 
   /* -----------------------------
