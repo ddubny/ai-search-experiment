@@ -335,7 +335,14 @@ export default function DemographicSurvey() {
             </div>
 
             {/* Race (optional) */}
-            <div>
+            <div
+              ref={(el) => (fieldRefs.current.race = el)}
+              className={
+                isHighlighted("race")
+                  ? "p-3 rounded-lg border-2 border-red-500"
+                  : ""
+              }
+            >
               <label className="block mb-2 font-medium">
                 Which of the following would you say best describes your race?
                 (Check all that apply)
