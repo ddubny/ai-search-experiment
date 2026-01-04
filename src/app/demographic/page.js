@@ -29,7 +29,7 @@ export default function DemographicSurvey() {
   const [highlightFields, setHighlightFields] = useState([]);
   const fieldRefs = useRef({});
 
-  const requiredFields = ["age", "gender", "education", "hispanic"];
+  const requiredFields = ["age", "gender", "education", "race", "hispanic"];
 
   /* -----------------------------
      participant_id 불러오기
@@ -74,6 +74,9 @@ export default function DemographicSurvey() {
       if (field === "gender") return !String(v).trim();
       if (field === "education") return !String(v).trim();
       if (field === "hispanic") return !String(v).trim();
+      if (field === "race") {
+        return !Array.isArray(formData.race) || formData.race.length === 0;
+      }
       return !v;
     });
   };
