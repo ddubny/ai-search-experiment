@@ -69,7 +69,6 @@ export default function DemographicSurvey() {
   ------------------------------*/
   const getUnansweredRequiredFields = () => {
     return requiredFields.filter((field) => {
-      const v = formData[field];
       if (field === "age") return !String(v).trim();
       if (field === "gender") return !String(v).trim();
       if (field === "education") return !String(v).trim();
