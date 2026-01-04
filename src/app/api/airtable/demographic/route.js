@@ -15,7 +15,6 @@ export async function POST(req) {
         body: JSON.stringify({
           fields: {
             participant_id: body.participant_id,
-            scenario: body.scenario,
             age: Number(body.age),
             gender: body.gender,
             education: body.education,
