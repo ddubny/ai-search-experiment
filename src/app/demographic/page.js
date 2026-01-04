@@ -69,15 +69,13 @@ export default function DemographicSurvey() {
   ------------------------------*/
   const getUnansweredRequiredFields = () => {
     return requiredFields.filter((field) => {
+      const v = formData[field];
       if (field === "age") return !String(v).trim();
       if (field === "gender") return !String(v).trim();
       if (field === "education") return !String(v).trim();
       if (field === "hispanic") return !String(v).trim();
-      if (field === "race") {
-        return !Array.isArray(formData.race) || formData.race.length === 0;
-      }
-      const v = formData[field];
-      return !String(v ?? "").trim();
+      
+      return !v;
     });
   };
 
@@ -89,22 +87,14 @@ export default function DemographicSurvey() {
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
 
+    // race (checkbox)
     if (type === "checkbox" && name === "race") {
-      // race는 배열이므로 "다음 상태"를 먼저 계산해서 highlight 로직에 사용
-      const nextRace = checked
-        ? [...formData.race, value]
-        : formData.race.filter((r) => r !== value);
-
       setFormData((prev) => ({
         ...prev,
-        race: nextRace,
+        race: checked
+          ? [...prev.race, value]
+          : prev.race.filter((r) => r !== value),
       }));
-
-      // race는 선택이 "있을 때만" 해결로 간주
-      setHighlightFields((prev) =>
-        nextRace.length > 0 ? prev.filter((f) => f !== "race") : prev
-      );
-
       return;
     }
 
