@@ -81,37 +81,45 @@ export default function DemographicSurvey() {
   const hasUnansweredRequired = () => getUnansweredRequiredFields().length > 0;
 
   /* -----------------------------
-     입력 변경
+     입력 변경 (✅ 에러 수정 + race 체크/해제 인식 정확화)
   ------------------------------*/
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
 
-    if (type === "checkbox") {
+    if (type === "checkbox" && name === "race") {
+      // race는 배열이므로 "다음 상태"를 먼저 계산해서 highlight 로직에 사용
+      const nextRace = checked
+        ? [...formData.race, value]
+        : formData.race.filter((r) => r !== value);
+
       setFormData((prev) => ({
         ...prev,
-        race: checked
-          ? [...prev.race, value]
-          : prev.race.filter((r) => r !== value),
+        race: nextRace,
       }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
+
+      // race는 선택이 "있을 때만" 해결로 간주
+      setHighlightFields((prev) =>
+        nextRace.length > 0 ? prev.filter((f) => f !== "race") : prev
+      );
+
+      return;
     }
-    setHighlightFields((prev) => {
-      if (name === "race") {
-        return formData.race.length > 0
-        ? prev.filter((f) => f !== "race")
-        : prev;
-      }
-    return value ? prev.filter((f) => f !==name) : prev;
-  });
+
+    // 나머지 필드
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    // 일반 필드는 값이 들어오면 해당 필드 highlight 해제
+    setHighlightFields((prev) =>
+      String(value ?? "").trim() ? prev.filter((f) => f !== name) : prev
+    );
+  };
 
   const buildAirtablePayloadFields = () => {
     const fields = {
       participant_id: participantId,
-      // race는 선택한 것이 있을 때만 보냄
       ...(Array.isArray(formData.race) && formData.race.length > 0
         ? { race: formData.race }
         : {}),
@@ -148,7 +156,6 @@ export default function DemographicSurvey() {
   ------------------------------*/
   const submitData = async () => {
     if (!participantId) {
-      // participantId 없으면 진짜 문제이므로 메시지 표시
       setMessage("Participant ID missing. Please restart the study.");
       setLoading(false);
       return;
@@ -179,12 +186,10 @@ export default function DemographicSurvey() {
   };
 
   /* -----------------------------
-     Submit 
+     Submit
   ------------------------------*/
   const handleSubmit = (e) => {
     e.preventDefault();
-
-    // 저장 에러 메시지는 "저장 시도"에만 의미가 있으므로 여기서 초기화
     setMessage("");
 
     if (hasUnansweredRequired()) {
@@ -218,14 +223,14 @@ export default function DemographicSurvey() {
   };
 
   /* -----------------------------
-     Continue Without Answering: 
+     Continue Without Answering:
   ------------------------------*/
   const handleContinueWithoutAnswering = () => {
     setMessage("");
 
     setShowWarningModal(false);
     setLoading(true);
-    submitData(); // 
+    submitData();
   };
 
   const isHighlighted = (fieldName) => highlightFields.includes(fieldName);
@@ -246,7 +251,11 @@ export default function DemographicSurvey() {
             {/* Age */}
             <div
               ref={(el) => (fieldRefs.current.age = el)}
-              className={isHighlighted("age") ? "p-3 rounded-lg border-2 border-red-500" : ""}
+              className={
+                isHighlighted("age")
+                  ? "p-3 rounded-lg border-2 border-red-500"
+                  : ""
+              }
             >
               <label className="block mb-2 font-medium">What is your age?</label>
               <input
@@ -262,26 +271,32 @@ export default function DemographicSurvey() {
             {/* Gender */}
             <div
               ref={(el) => (fieldRefs.current.gender = el)}
-              className={isHighlighted("gender") ? "p-3 rounded-lg border-2 border-red-500" : ""}
+              className={
+                isHighlighted("gender")
+                  ? "p-3 rounded-lg border-2 border-red-500"
+                  : ""
+              }
             >
               <label className="block mb-2 font-medium">
                 What is your gender identity?
               </label>
 
-              {["Male", "Female", "Non-binary", "Not listed (please state)"].map((option) => (
-                <div key={option} className="flex items-center mb-1">
-                  <input
-                    type="radio"
-                    id={option}
-                    name="gender"
-                    value={option}
-                    checked={formData.gender === option}
-                    onChange={handleChange}
-                    className="mr-2"
-                  />
-                  <label htmlFor={option}>{option}</label>
-                </div>
-              ))}
+              {["Male", "Female", "Non-binary", "Not listed (please state)"].map(
+                (option) => (
+                  <div key={option} className="flex items-center mb-1">
+                    <input
+                      type="radio"
+                      id={option}
+                      name="gender"
+                      value={option}
+                      checked={formData.gender === option}
+                      onChange={handleChange}
+                      className="mr-2"
+                    />
+                    <label htmlFor={option}>{option}</label>
+                  </div>
+                )
+              )}
 
               {formData.gender === "Not listed (please state)" && (
                 <input
@@ -299,11 +314,14 @@ export default function DemographicSurvey() {
             <div
               ref={(el) => (fieldRefs.current.education = el)}
               className={
-                isHighlighted("education") ? "p-3 rounded-lg border-2 border-red-500" : ""
+                isHighlighted("education")
+                  ? "p-3 rounded-lg border-2 border-red-500"
+                  : ""
               }
             >
               <label className="block mb-2 font-medium">
-                What is the highest level of school you completed, or the highest degree you received?
+                What is the highest level of school you completed, or the highest
+                degree you received?
               </label>
               <select
                 name="education"
@@ -326,7 +344,8 @@ export default function DemographicSurvey() {
             {/* Race (optional) */}
             <div>
               <label className="block mb-2 font-medium">
-                Which of the following would you say best describes your race? (Check all that apply)
+                Which of the following would you say best describes your race?
+                (Check all that apply)
               </label>
               {[
                 "White",
@@ -354,7 +373,9 @@ export default function DemographicSurvey() {
             <div
               ref={(el) => (fieldRefs.current.hispanic = el)}
               className={
-                isHighlighted("hispanic") ? "p-3 rounded-lg border-2 border-red-500" : ""
+                isHighlighted("hispanic")
+                  ? "p-3 rounded-lg border-2 border-red-500"
+                  : ""
               }
             >
               <label className="block mb-2 font-medium">
@@ -386,7 +407,6 @@ export default function DemographicSurvey() {
                 {loading ? "Submitting..." : "Submit"}
               </button>
 
-              {/* 저장 실패시에만 보여줌 */}
               {message && <p className="text-red-600 mt-3">{message}</p>}
             </div>
           </form>
