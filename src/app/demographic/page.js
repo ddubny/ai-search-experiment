@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ProgressBar from "../../components/ProgressBar";
 
@@ -18,8 +18,16 @@ export default function DemographicSurvey() {
 
   const [participantId, setParticipantId] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  // 저장 실패시에만 보여줄 메시지
   const [message, setMessage] = useState("");
+
+  // Warning modal
   const [showWarningModal, setShowWarningModal] = useState(false);
+
+  // 미응답 하이라이트
+  const [highlightFields, setHighlightFields] = useState([]);
+  const fieldRefs = useRef({});
 
   const requiredFields = ["age", "gender", "education", "hispanic"];
 
@@ -41,7 +49,11 @@ export default function DemographicSurvey() {
   useEffect(() => {
     const saved = localStorage.getItem("demographic_form");
     if (saved) {
-      setFormData(JSON.parse(saved));
+      try {
+        setFormData(JSON.parse(saved));
+      } catch {
+        // ignore parse errors
+      }
     }
   }, []);
 
@@ -55,17 +67,21 @@ export default function DemographicSurvey() {
   /* -----------------------------
      필수 문항 미응답 체크
   ------------------------------*/
-  const hasUnansweredRequired = () => {
-    return requiredFields.some((field) => {
-      if (field === "gender") {
-        return !formData.gender;
-      }
-      return !formData[field];
+  const getUnansweredRequiredFields = () => {
+    return requiredFields.filter((field) => {
+      const v = formData[field];
+      if (field === "age") return !String(v).trim();
+      if (field === "gender") return !String(v).trim();
+      if (field === "education") return !String(v).trim();
+      if (field === "hispanic") return !String(v).trim();
+      return !v;
     });
   };
 
+  const hasUnansweredRequired = () => getUnansweredRequiredFields().length > 0;
+
   /* -----------------------------
-     입력 변경 핸들러
+     입력 변경
   ------------------------------*/
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -83,37 +99,84 @@ export default function DemographicSurvey() {
         [name]: value,
       }));
     }
+
+    // 사용자가 수정하기 시작하면 해당 필드 하이라이트 해제
+    setHighlightFields((prev) => prev.filter((f) => f !== name));
   };
 
   /* -----------------------------
-     실제 저장 로직 (Airtable)
+     Airtable로 보낼 fields 구성 (핵심)
+     - 빈 값( "", [] )은 "보내지 않음(omit)" => 부분 저장 가능
+     - age는 숫자 변환 가능할 때만 보냄
+     - gender_other는 Not listed일 때만 보냄(원하면 컬럼 있을 때)
+  ------------------------------*/
+  const buildAirtablePayloadFields = () => {
+    const fields = {
+      participant_id: participantId,
+      // race는 선택한 것이 있을 때만 보냄
+      ...(Array.isArray(formData.race) && formData.race.length > 0
+        ? { race: formData.race }
+        : {}),
+    };
+
+    const ageStr = String(formData.age ?? "").trim();
+    if (ageStr) {
+      const ageNum = Number(ageStr);
+      if (!Number.isNaN(ageNum)) fields.age = ageNum;
+      // 숫자가 아니면 아예 생략(부분 저장 우선)
+    }
+
+    const genderStr = String(formData.gender ?? "").trim();
+    if (genderStr) {
+      // Not listed면 gender_other를 저장하고, 아니면 그대로 저장
+      if (genderStr === "Not listed (please state)") {
+        const other = String(formData.gender_other ?? "").trim();
+        // Airtable gender를 Single select로 쓰는 경우:
+        // 선택 값 자체를 저장하려면 아래를 유지.
+        fields.gender = genderStr;
+
+        // gender_other 컬럼이 Airtable에 있다면 저장:
+        if (other) fields.gender_other = other;
+      } else {
+        fields.gender = genderStr;
+      }
+    }
+
+    const eduStr = String(formData.education ?? "").trim();
+    if (eduStr) fields.education = eduStr;
+
+    const hispStr = String(formData.hispanic ?? "").trim();
+    if (hispStr) fields.hispanic = hispStr;
+
+    return fields;
+  };
+
+  /* -----------------------------
+     실제 저장 (Continue 포함)
   ------------------------------*/
   const submitData = async () => {
     if (!participantId) {
+      // participantId 없으면 진짜 문제이므로 메시지 표시
       setMessage("Participant ID missing. Please restart the study.");
       setLoading(false);
       return;
     }
 
     try {
+      const fields = buildAirtablePayloadFields();
+
       const res = await fetch("/api/airtable/demographic", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          participant_id: participantId,
-          age: formData.age,
-          gender:
-            formData.gender === "Not listed (please state)"
-              ? formData.gender_other
-              : formData.gender,
-          education: formData.education,
-          race: formData.race,
-          hispanic: formData.hispanic,
-        }),
+        body: JSON.stringify(fields),
       });
 
-      if (!res.ok) throw new Error("Save failed");
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(text || "Save failed");
+      }
 
+      // 성공하면 로컬 저장값 제거 후 다음으로
       localStorage.removeItem("demographic_form");
       router.push("/thankyou");
     } catch (err) {
@@ -125,10 +188,15 @@ export default function DemographicSurvey() {
   };
 
   /* -----------------------------
-     Submit 핸들러
+     Submit 버튼 클릭
+     - 미응답 있으면 modal
+     - 응답 완료면 바로 저장
   ------------------------------*/
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    // 저장 에러 메시지는 "저장 시도"에만 의미가 있으므로 여기서 초기화
+    setMessage("");
 
     if (hasUnansweredRequired()) {
       setShowWarningModal(true);
@@ -136,13 +204,52 @@ export default function DemographicSurvey() {
     }
 
     setLoading(true);
-    setMessage("");
     submitData();
   };
 
+  /* -----------------------------
+     Answer the Question: 미응답 표시 + 스크롤
+  ------------------------------*/
+  const handleAnswerTheQuestion = () => {
+    // 에러가 아니라 안내 동작이므로 메시지 숨김
+    setMessage("");
+
+    const unanswered = getUnansweredRequiredFields();
+    setHighlightFields(unanswered);
+
+    const first = unanswered[0];
+    if (first && fieldRefs.current[first]) {
+      fieldRefs.current[first].scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+
+    setShowWarningModal(false);
+
+    // 2초 후 하이라이트 자동 해제 (원치 않으면 제거 가능)
+    setTimeout(() => setHighlightFields([]), 2000);
+  };
+
+  /* -----------------------------
+     Continue Without Answering: 부분 저장 + 다음으로
+  ------------------------------*/
+  const handleContinueWithoutAnswering = () => {
+    // 에러 메시지 숨김 (이건 정상 플로우)
+    setMessage("");
+
+    setShowWarningModal(false);
+    setLoading(true);
+    submitData(); // ✅ 빈 값은 omit 처리되므로 Airtable 저장 성공 가능
+  };
+
+  const isHighlighted = (fieldName) => highlightFields.includes(fieldName);
+
   return (
     <div className="w-full h-screen flex flex-col bg-gray-50">
-      <ProgressBar progress={100} />
+      <div className="w-full">
+        <ProgressBar progress={100} />
+      </div>
 
       <div className="flex-1 flex items-center justify-center">
         <div className="w-full max-w-2xl bg-white shadow-lg rounded-2xl p-10 overflow-y-auto max-h-[85vh]">
@@ -152,7 +259,10 @@ export default function DemographicSurvey() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Age */}
-            <div>
+            <div
+              ref={(el) => (fieldRefs.current.age = el)}
+              className={isHighlighted("age") ? "p-3 rounded-lg border-2 border-red-500" : ""}
+            >
               <label className="block mb-2 font-medium">What is your age?</label>
               <input
                 type="text"
@@ -161,29 +271,35 @@ export default function DemographicSurvey() {
                 onChange={handleChange}
                 className="w-full border rounded-lg p-2"
                 placeholder="Enter your age"
+                // required 제거 (브라우저 팝업 차단)
               />
             </div>
 
             {/* Gender */}
-            <div>
+            <div
+              ref={(el) => (fieldRefs.current.gender = el)}
+              className={isHighlighted("gender") ? "p-3 rounded-lg border-2 border-red-500" : ""}
+            >
               <label className="block mb-2 font-medium">
                 What is your gender identity?
               </label>
-              {["Male", "Female", "Non-binary", "Not listed (please state)"].map(
-                (option) => (
-                  <div key={option} className="flex items-center mb-1">
-                    <input
-                      type="radio"
-                      name="gender"
-                      value={option}
-                      checked={formData.gender === option}
-                      onChange={handleChange}
-                      className="mr-2"
-                    />
-                    <label>{option}</label>
-                  </div>
-                )
-              )}
+
+              {["Male", "Female", "Non-binary", "Not listed (please state)"].map((option) => (
+                <div key={option} className="flex items-center mb-1">
+                  <input
+                    type="radio"
+                    id={option}
+                    name="gender"
+                    value={option}
+                    checked={formData.gender === option}
+                    onChange={handleChange}
+                    className="mr-2"
+                    // required 제거
+                  />
+                  <label htmlFor={option}>{option}</label>
+                </div>
+              ))}
+
               {formData.gender === "Not listed (please state)" && (
                 <input
                   type="text"
@@ -197,7 +313,12 @@ export default function DemographicSurvey() {
             </div>
 
             {/* Education */}
-            <div>
+            <div
+              ref={(el) => (fieldRefs.current.education = el)}
+              className={
+                isHighlighted("education") ? "p-3 rounded-lg border-2 border-red-500" : ""
+              }
+            >
               <label className="block mb-2 font-medium">
                 What is the highest level of school you completed, or the highest degree you received?
               </label>
@@ -206,6 +327,7 @@ export default function DemographicSurvey() {
                 value={formData.education}
                 onChange={handleChange}
                 className="w-full border rounded-lg p-2"
+                // required 제거
               >
                 <option value="">Select one</option>
                 <option>Never Attended School or Only Attended Kindergarten</option>
@@ -219,7 +341,7 @@ export default function DemographicSurvey() {
               </select>
             </div>
 
-            {/* Race */}
+            {/* Race (optional) */}
             <div>
               <label className="block mb-2 font-medium">
                 Which of the following would you say best describes your race? (Check all that apply)
@@ -234,18 +356,25 @@ export default function DemographicSurvey() {
                 <div key={race} className="flex items-center mb-1">
                   <input
                     type="checkbox"
+                    id={race}
+                    name="race"
                     value={race}
                     checked={formData.race.includes(race)}
                     onChange={handleChange}
                     className="mr-2"
                   />
-                  <label>{race}</label>
+                  <label htmlFor={race}>{race}</label>
                 </div>
               ))}
             </div>
 
             {/* Hispanic */}
-            <div>
+            <div
+              ref={(el) => (fieldRefs.current.hispanic = el)}
+              className={
+                isHighlighted("hispanic") ? "p-3 rounded-lg border-2 border-red-500" : ""
+              }
+            >
               <label className="block mb-2 font-medium">
                 Are you Hispanic or Latino/a/x?
               </label>
@@ -253,17 +382,20 @@ export default function DemographicSurvey() {
                 <div key={option} className="flex items-center mb-1">
                   <input
                     type="radio"
+                    id={option}
                     name="hispanic"
                     value={option}
                     checked={formData.hispanic === option}
                     onChange={handleChange}
                     className="mr-2"
+                    // required 제거
                   />
-                  <label>{option}</label>
+                  <label htmlFor={option}>{option}</label>
                 </div>
               ))}
             </div>
 
+            {/* Submit */}
             <div className="text-center pt-4">
               <button
                 type="submit"
@@ -272,6 +404,8 @@ export default function DemographicSurvey() {
               >
                 {loading ? "Submitting..." : "Submit"}
               </button>
+
+              {/* 저장 실패시에만 보여줌 */}
               {message && <p className="text-red-600 mt-3">{message}</p>}
             </div>
           </form>
@@ -290,19 +424,17 @@ export default function DemographicSurvey() {
 
             <div className="flex gap-4">
               <button
-                onClick={() => {
-                  setShowWarningModal(false);
-                  setLoading(true);
-                  submitData();
-                }}
+                onClick={handleContinueWithoutAnswering}
                 className="flex-1 border rounded-lg py-2"
+                disabled={loading}
               >
                 Continue Without Answering
               </button>
 
               <button
-                onClick={() => setShowWarningModal(false)}
+                onClick={handleAnswerTheQuestion}
                 className="flex-1 bg-blue-600 text-white rounded-lg py-2"
+                disabled={loading}
               >
                 Answer the Question
               </button>
