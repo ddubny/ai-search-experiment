@@ -161,7 +161,6 @@ export default function DemographicSurvey() {
                 onChange={handleChange}
                 className="w-full border rounded-lg p-2"
                 placeholder="Enter your age"
-                required
               />
             </div>
 
@@ -180,7 +179,6 @@ export default function DemographicSurvey() {
                       checked={formData.gender === option}
                       onChange={handleChange}
                       className="mr-2"
-                      required
                     />
                     <label>{option}</label>
                   </div>
@@ -208,7 +206,6 @@ export default function DemographicSurvey() {
                 value={formData.education}
                 onChange={handleChange}
                 className="w-full border rounded-lg p-2"
-                required
               >
                 <option value="">Select one</option>
                 <option>Never Attended School or Only Attended Kindergarten</option>
@@ -261,7 +258,6 @@ export default function DemographicSurvey() {
                     checked={formData.hispanic === option}
                     onChange={handleChange}
                     className="mr-2"
-                    required
                   />
                   <label>{option}</label>
                 </div>
