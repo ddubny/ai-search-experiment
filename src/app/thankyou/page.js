@@ -42,18 +42,18 @@ export default function Thankyou() {
 
           {/* Completion URL */}
           <div className="border rounded-lg p-4 bg-gray-50">
-            <p className="text-sm font-semibold mb-2">
+            <p className="text-lg font-semibold mb-2">
               Prolific Completion Link
             </p>
             <div className="flex items-center gap-2">
               <input
                 readOnly
                 value={COMPLETION_URL}
-                className="flex-1 border border-gray-300 rounded-lg p-2 text-sm text-gray-700 bg-white"
+                className="flex-1 border border-gray-300 rounded-lg p-2 text-lg text-gray-700 bg-white"
               />
               <button
                 onClick={() => handleCopy(COMPLETION_URL, "url")}
-                className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+                className="px-3 py-2 bg-blue-600 text-white rounded-lg text-lg hover:bg-blue-700"
               >
                 Copy
               </button>
@@ -67,18 +67,18 @@ export default function Thankyou() {
 
           {/* Completion Code */}
           <div className="border rounded-lg p-4 bg-gray-50">
-            <p className="text-sm font-semibold mb-2">
+            <p className="text-lg font-semibold mb-2">
               Completion Code
             </p>
             <div className="flex items-center gap-2">
               <input
                 readOnly
                 value={COMPLETION_CODE}
-                className="flex-1 border border-gray-300 rounded-lg p-2 text-sm text-gray-700 bg-white text-center font-mono"
+                className="flex-1 border border-gray-300 rounded-lg p-2 text-lg text-gray-700 bg-white text-center font-mono"
               />
               <button
                 onClick={() => handleCopy(COMPLETION_CODE, "code")}
-                className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+                className="px-3 py-2 bg-blue-600 text-white rounded-lg text-lg hover:bg-blue-700"
               >
                 Copy
               </button>
@@ -91,7 +91,7 @@ export default function Thankyou() {
           </div>
 
           {/* Explanation */}
-          <div className="text-left text-sm text-gray-600 leading-relaxed">
+          <div className="text-center text-sm text-gray-600 leading-relaxed">
             <p>
               To receive credit for your participation on Prolific, you need to
               confirm that you have completed this study.
