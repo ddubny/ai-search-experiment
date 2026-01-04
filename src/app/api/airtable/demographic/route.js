@@ -15,7 +15,7 @@ export async function POST(req) {
         body: JSON.stringify({
           fields: {
             participant_id: body.participant_id,
-            age: Number(body.age),
+            age: body.age ? Number(body.age) : null,
             gender: body.gender,
             education: body.education,
             race: body.race,
