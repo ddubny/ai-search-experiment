@@ -191,8 +191,10 @@ export default function DemographicSurvey() {
   ------------------------------*/
   const handleAnswerTheQuestion = () => {
     setMessage("");
-
-    const unanswered = getUnansweredRequiredFields();
+    const highlightTargets = ["age", "gender", "education", "race", "hispanic"];
+    const unanswered = highlightTargets.filter(
+      (field) => !isAnswered(field)
+    );
     setHighlightFields(unanswered);
 
     const first = unanswered[0];
@@ -204,7 +206,6 @@ export default function DemographicSurvey() {
     }
 
     setShowWarningModal(false);
-    setTimeout(() => setHighlightFields([]), 2000);
   };
 
   const isAnswered = (field) => {
