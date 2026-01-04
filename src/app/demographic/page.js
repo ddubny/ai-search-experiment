@@ -99,17 +99,15 @@ export default function DemographicSurvey() {
         [name]: value,
       }));
     }
+    setHighlightFields((prev) => {
+      if (name === "race") {
+        return formData.race.length > 0
+        ? prev.filter((f) => f !== "race")
+        : prev;
+      }
+    return value ? prev.filter((f) => f !==name) : prev;
+  });
 
-    // 사용자가 수정하기 시작하면 해당 필드 하이라이트 해제
-    setHighlightFields((prev) => prev.filter((f) => f !== name));
-  };
-
-  /* -----------------------------
-     Airtable로 보낼 fields 구성 (핵심)
-     - 빈 값( "", [] )은 "보내지 않음(omit)" => 부분 저장 가능
-     - age는 숫자 변환 가능할 때만 보냄
-     - gender_other는 Not listed일 때만 보냄(원하면 컬럼 있을 때)
-  ------------------------------*/
   const buildAirtablePayloadFields = () => {
     const fields = {
       participant_id: participantId,
@@ -123,19 +121,13 @@ export default function DemographicSurvey() {
     if (ageStr) {
       const ageNum = Number(ageStr);
       if (!Number.isNaN(ageNum)) fields.age = ageNum;
-      // 숫자가 아니면 아예 생략(부분 저장 우선)
     }
 
     const genderStr = String(formData.gender ?? "").trim();
     if (genderStr) {
-      // Not listed면 gender_other를 저장하고, 아니면 그대로 저장
       if (genderStr === "Not listed (please state)") {
         const other = String(formData.gender_other ?? "").trim();
-        // Airtable gender를 Single select로 쓰는 경우:
-        // 선택 값 자체를 저장하려면 아래를 유지.
         fields.gender = genderStr;
-
-        // gender_other 컬럼이 Airtable에 있다면 저장:
         if (other) fields.gender_other = other;
       } else {
         fields.gender = genderStr;
@@ -176,7 +168,6 @@ export default function DemographicSurvey() {
         throw new Error(text || "Save failed");
       }
 
-      // 성공하면 로컬 저장값 제거 후 다음으로
       localStorage.removeItem("demographic_form");
       router.push("/thankyou");
     } catch (err) {
@@ -188,9 +179,7 @@ export default function DemographicSurvey() {
   };
 
   /* -----------------------------
-     Submit 버튼 클릭
-     - 미응답 있으면 modal
-     - 응답 완료면 바로 저장
+     Submit 
   ------------------------------*/
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -208,10 +197,9 @@ export default function DemographicSurvey() {
   };
 
   /* -----------------------------
-     Answer the Question: 미응답 표시 + 스크롤
+     Answer the Question:
   ------------------------------*/
   const handleAnswerTheQuestion = () => {
-    // 에러가 아니라 안내 동작이므로 메시지 숨김
     setMessage("");
 
     const unanswered = getUnansweredRequiredFields();
@@ -226,21 +214,18 @@ export default function DemographicSurvey() {
     }
 
     setShowWarningModal(false);
-
-    // 2초 후 하이라이트 자동 해제 (원치 않으면 제거 가능)
     setTimeout(() => setHighlightFields([]), 2000);
   };
 
   /* -----------------------------
-     Continue Without Answering: 부분 저장 + 다음으로
+     Continue Without Answering: 
   ------------------------------*/
   const handleContinueWithoutAnswering = () => {
-    // 에러 메시지 숨김 (이건 정상 플로우)
     setMessage("");
 
     setShowWarningModal(false);
     setLoading(true);
-    submitData(); // ✅ 빈 값은 omit 처리되므로 Airtable 저장 성공 가능
+    submitData(); // 
   };
 
   const isHighlighted = (fieldName) => highlightFields.includes(fieldName);
@@ -271,7 +256,6 @@ export default function DemographicSurvey() {
                 onChange={handleChange}
                 className="w-full border rounded-lg p-2"
                 placeholder="Enter your age"
-                // required 제거 (브라우저 팝업 차단)
               />
             </div>
 
@@ -294,7 +278,6 @@ export default function DemographicSurvey() {
                     checked={formData.gender === option}
                     onChange={handleChange}
                     className="mr-2"
-                    // required 제거
                   />
                   <label htmlFor={option}>{option}</label>
                 </div>
@@ -327,7 +310,6 @@ export default function DemographicSurvey() {
                 value={formData.education}
                 onChange={handleChange}
                 className="w-full border rounded-lg p-2"
-                // required 제거
               >
                 <option value="">Select one</option>
                 <option>Never Attended School or Only Attended Kindergarten</option>
@@ -388,7 +370,6 @@ export default function DemographicSurvey() {
                     checked={formData.hispanic === option}
                     onChange={handleChange}
                     className="mr-2"
-                    // required 제거
                   />
                   <label htmlFor={option}>{option}</label>
                 </div>
