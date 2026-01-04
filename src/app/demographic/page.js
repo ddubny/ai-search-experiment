@@ -282,7 +282,7 @@ export default function DemographicSurvey() {
 
               {["Male", "Female", "Non-binary", "Not listed (please state)"].map(
                 (option) => (
-                  <div key={option} className="flex items-center mb-1">
+                  <div key={option} className="flex items-center mb-2 cursor-pointer py-2">
                     <input
                       type="radio"
                       id={option}
@@ -290,7 +290,7 @@ export default function DemographicSurvey() {
                       value={option}
                       checked={formData.gender === option}
                       onChange={handleChange}
-                      className="mr-2"
+                      className="mr-3 w-4 h-4"
                     />
                     <label htmlFor={option}>{option}</label>
                   </div>
@@ -360,7 +360,7 @@ export default function DemographicSurvey() {
                 "American Indian or Alaska Native",
                 "Native Hawaiian or Other Pacific Islander",
               ].map((race) => (
-                <div key={race} className="flex items-center mb-1">
+                <div key={race} className="flex items-center mb-2 cursor-pointer py-2">
                   <input
                     type="checkbox"
                     id={race}
@@ -368,7 +368,7 @@ export default function DemographicSurvey() {
                     value={race}
                     checked={formData.race.includes(race)}
                     onChange={handleChange}
-                    className="mr-2"
+                    className="mr-3 w-4 h-4"
                   />
                   <label htmlFor={race}>{race}</label>
                 </div>
@@ -407,7 +407,7 @@ export default function DemographicSurvey() {
             <div className="text-center pt-4">
               <button
                 type="submit"
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
+                className="bg-blue-600 text-white px-10 py-4 rounded-xl text-lg font-semibold hover:bg-blue-700 transition"
                 disabled={loading}
               >
                 {loading ? "Submitting..." : "Submit"}

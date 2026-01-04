@@ -49,7 +49,7 @@ export default function Thankyou() {
               <input
                 readOnly
                 value={COMPLETION_URL}
-                className="flex-1 border border-gray-300 rounded-lg p-2 text-lg text-gray-700 bg-white"
+                className="flex-1 border border-gray-300 rounded-lg p-2 text-sm text-gray-700 bg-white"
               />
               <button
                 onClick={() => handleCopy(COMPLETION_URL, "url")}
