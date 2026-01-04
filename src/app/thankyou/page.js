@@ -1,91 +1,112 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { supabase } from "../../lib/supabaseClient";
+import { useEffect, useState } from "react";
 import ProgressBar from "../../components/ProgressBar";
 
-export default function Thankyou() {
-  const [email, setEmail] = useState("");
-  const [participantId, setParticipantId] = useState(null); // ✅ 추가
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+const COMPLETION_CODE = "C1P8TZBS";
+const COMPLETION_URL =
+  "https://app.prolific.com/submissions/complete?cc=C1P8TZBS";
 
-  // ✅ localStorage에서 participant_id 불러오기
+export default function Thankyou() {
+  const [copied, setCopied] = useState("");
+
   useEffect(() => {
     const id = localStorage.getItem("participant_id");
     if (!id) {
-      window.location.href = "/check"; // ID 없을 시 초기화
-      return;
+      window.location.href = "/check";
     }
-    setParticipantId(id);
   }, []);
 
-  // ✅ Supabase에 이메일 + participant_id 저장
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage("");
-
-    try {
-      const { error } = await supabase.from("thankyou").insert([
-        {
-          participant_id: participantId, // ✅ 추가됨
-          email,
-          created_at: new Date().toISOString(),
-        },
-      ]);
-
-      if (error) throw error;
-
-      setMessage("Thank you! Your email has been submitted.");
-      setEmail("");
-    } catch (err) {
-      console.error("❌ Error saving email:", err);
-      setMessage("An error occurred. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+  const handleCopy = async (text, type) => {
+    await navigator.clipboard.writeText(text);
+    setCopied(type);
+    setTimeout(() => setCopied(""), 2000);
   };
 
   return (
     <main className="flex flex-col min-h-screen">
-      {/* ✅ Progress Bar */}
+      {/* Progress Bar */}
       <div className="w-full fixed top-0 left-0 z-50">
         <ProgressBar progress={100} />
       </div>
 
-      {/* ✅ Content */}
+      {/* Content */}
       <div className="flex flex-1 items-center justify-center p-6">
-        <div className="text-center max-w-md">
-          <h1 className="text-2xl font-bold mb-2">Thank you for participating!</h1>
-          <h1 className="text-2xl font-bold mb-2">Your responses are recorded.</h1>
-          <p className="text-gray-600 mb-6">
-            The experiment has been completed. <br />
-            You will receive your gift card within <br />
-            <span className="font-semibold">7 business days</span> after participation.
+        <div className="text-center max-w-lg space-y-6">
+          <h1 className="text-2xl font-bold">
+            Thank you for participating!
+          </h1>
+          <p className="text-gray-600">
+            You have successfully completed the study.
           </p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <input
-              type="email"
-              required
-              placeholder="Enter your email for the gift card"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition duration-300"
-            >
-              {loading ? "Submitting..." : "Submit"}
-            </button>
-          </form>
+          {/* Completion URL */}
+          <div className="border rounded-lg p-4 bg-gray-50">
+            <p className="text-sm font-semibold mb-2">
+              Prolific Completion Link
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                readOnly
+                value={COMPLETION_URL}
+                className="flex-1 border border-gray-300 rounded-lg p-2 text-sm text-gray-700 bg-white"
+              />
+              <button
+                onClick={() => handleCopy(COMPLETION_URL, "url")}
+                className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+              >
+                Copy
+              </button>
+            </div>
+            {copied === "url" && (
+              <p className="text-xs text-green-600 mt-1">
+                Link copied to clipboard
+              </p>
+            )}
+          </div>
 
-          {message && (
-            <p className="mt-4 text-sm text-gray-700">{message}</p>
-          )}
+          {/* Completion Code */}
+          <div className="border rounded-lg p-4 bg-gray-50">
+            <p className="text-sm font-semibold mb-2">
+              Completion Code
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                readOnly
+                value={COMPLETION_CODE}
+                className="flex-1 border border-gray-300 rounded-lg p-2 text-sm text-gray-700 bg-white text-center font-mono"
+              />
+              <button
+                onClick={() => handleCopy(COMPLETION_CODE, "code")}
+                className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+              >
+                Copy
+              </button>
+            </div>
+            {copied === "code" && (
+              <p className="text-xs text-green-600 mt-1">
+                Code copied to clipboard
+              </p>
+            )}
+          </div>
+
+          {/* Explanation */}
+          <div className="text-left text-sm text-gray-600 leading-relaxed">
+            <p>
+              To receive credit for your participation on Prolific, you need to
+              confirm that you have completed this study.
+            </p>
+            <p className="mt-2">
+              You can do this in one of two ways: either by clicking the
+              completion link above, which will automatically redirect you back
+              to Prolific, or by copying and pasting the completion code into
+              Prolific manually.
+            </p>
+            <p className="mt-2 font-medium">
+              Please make sure to complete one of these steps to ensure your
+              submission is recorded correctly.
+            </p>
+          </div>
         </div>
       </div>
     </main>
